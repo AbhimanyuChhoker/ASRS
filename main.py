@@ -19,7 +19,7 @@ def load_data():
         with open(DATA_FILE, 'r') as f:
             return json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
-        return {"topics": {}}
+        return {"topics": {}, "total_reviews": 0}
 
 def save_data(data):
     with open(DATA_FILE, 'w') as f:
@@ -30,7 +30,8 @@ def add_topic(data, topic):
         data["topics"][topic] = {
             "level": 0,
             "next_review": datetime.date.today().isoformat(),
-            "difficulty": 3  # Default difficulty
+            "difficulty": 3,
+            "reviews": 0
         }
         save_data(data)
         print(f"Added topic: {topic}")
@@ -41,8 +42,9 @@ def review_topic(data, topic):
     if topic in data["topics"]:
         topic_data = data["topics"][topic]
         topic_data["level"] += 1
+        topic_data["reviews"] += 1
+        data["total_reviews"] += 1
         
-        # Ask for difficulty rating
         while True:
             try:
                 difficulty = int(input("Rate the difficulty (1-5, where 1 is easiest and 5 is hardest): "))
@@ -54,9 +56,8 @@ def review_topic(data, topic):
             except ValueError:
                 print("Please enter a valid number.")
         
-        # Adjust days to next review based on difficulty
         base_days = 2 ** topic_data["level"]
-        difficulty_factor = (6 - difficulty) / 3  # This makes easier topics have longer intervals
+        difficulty_factor = (6 - difficulty) / 3
         days_to_next_review = int(base_days * difficulty_factor)
         
         topic_data["next_review"] = (datetime.date.today() + datetime.timedelta(days=days_to_next_review)).isoformat()
@@ -90,6 +91,22 @@ def initialize_topics(data):
             add_topic(data, topic)
     print("Initial topics have been added.")
 
+def show_progress(data):
+    total_topics = len(data["topics"])
+    total_reviews = data["total_reviews"]
+    topics_reviewed = sum(1 for topic in data["topics"].values() if topic["reviews"] > 0)
+    
+    print(f"\nProgress Report:")
+    print(f"Total topics: {total_topics}")
+    print(f"Topics reviewed at least once: {topics_reviewed}")
+    print(f"Total reviews: {total_reviews}")
+    print(f"Average reviews per topic: {total_reviews / total_topics:.2f}")
+    
+    print("\nTop 5 most reviewed topics:")
+    sorted_topics = sorted(data["topics"].items(), key=lambda x: x[1]["reviews"], reverse=True)[:5]
+    for topic, topic_data in sorted_topics:
+        print(f"- {topic}: {topic_data['reviews']} reviews")
+
 def main():
     data = load_data()
     initialize_topics(data)
@@ -99,9 +116,10 @@ def main():
         print("2. Review a topic")
         print("3. Show topics to review today")
         print("4. Show all topics")
-        print("5. Exit")
+        print("5. Show progress")
+        print("6. Exit")
 
-        choice = input("Enter your choice (1-5): ")
+        choice = input("Enter your choice (1-6): ")
 
         if choice == '1':
             topic = input("Enter the topic name: ")
@@ -121,10 +139,12 @@ def main():
             if data["topics"]:
                 print("All topics:")
                 for topic, topic_data in data["topics"].items():
-                    print(f"- {topic} (Next review: {topic_data['next_review']}, Difficulty: {topic_data['difficulty']})")
+                    print(f"- {topic} (Next review: {topic_data['next_review']}, Difficulty: {topic_data['difficulty']}, Reviews: {topic_data['reviews']})")
             else:
                 print("No topics added yet.")
         elif choice == '5':
+            show_progress(data)
+        elif choice == '6':
             print("Exiting program. Goodbye!")
             break
         else:
