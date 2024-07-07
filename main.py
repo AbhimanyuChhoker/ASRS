@@ -2,7 +2,7 @@ import datetime
 import json
 
 DATA_FILE = "spaced_repetition_data.json"
-MAX_TOPICS_PER_DAY = 2
+MAX_TOPICS_PER_DAY = 3
 
 INITIAL_TOPICS = [
     "Road Not Taken", "Wind", "Reported Speech", "The Fun They Had", "The Lost Child",
@@ -29,7 +29,8 @@ def add_topic(data, topic):
     if topic not in data["topics"]:
         data["topics"][topic] = {
             "level": 0,
-            "next_review": datetime.date.today().isoformat()
+            "next_review": datetime.date.today().isoformat(),
+            "difficulty": 3  # Default difficulty
         }
         save_data(data)
         print(f"Added topic: {topic}")
@@ -40,7 +41,24 @@ def review_topic(data, topic):
     if topic in data["topics"]:
         topic_data = data["topics"][topic]
         topic_data["level"] += 1
-        days_to_next_review = 2 ** topic_data["level"]
+        
+        # Ask for difficulty rating
+        while True:
+            try:
+                difficulty = int(input("Rate the difficulty (1-5, where 1 is easiest and 5 is hardest): "))
+                if 1 <= difficulty <= 5:
+                    topic_data["difficulty"] = difficulty
+                    break
+                else:
+                    print("Please enter a number between 1 and 5.")
+            except ValueError:
+                print("Please enter a valid number.")
+        
+        # Adjust days to next review based on difficulty
+        base_days = 2 ** topic_data["level"]
+        difficulty_factor = (6 - difficulty) / 3  # This makes easier topics have longer intervals
+        days_to_next_review = int(base_days * difficulty_factor)
+        
         topic_data["next_review"] = (datetime.date.today() + datetime.timedelta(days=days_to_next_review)).isoformat()
         save_data(data)
         print(f"Reviewed '{topic}'. Next review in {days_to_next_review} days.")
@@ -56,7 +74,6 @@ def get_topics_to_review(data):
         topics_for_today = due_topics[:MAX_TOPICS_PER_DAY]
         topics_for_tomorrow = due_topics[MAX_TOPICS_PER_DAY:]
         
-        # Reschedule excess topics for tomorrow
         tomorrow = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
         for topic in topics_for_tomorrow:
             data["topics"][topic]["next_review"] = tomorrow
@@ -104,7 +121,7 @@ def main():
             if data["topics"]:
                 print("All topics:")
                 for topic, topic_data in data["topics"].items():
-                    print(f"- {topic} (Next review: {topic_data['next_review']})")
+                    print(f"- {topic} (Next review: {topic_data['next_review']}, Difficulty: {topic_data['difficulty']})")
             else:
                 print("No topics added yet.")
         elif choice == '5':
