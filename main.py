@@ -3,6 +3,7 @@ import json
 import time
 import random
 import os
+import csv
 
 DATA_FILE = "spaced_repetition_data.json"
 MAX_TOPICS_PER_DAY = 3
@@ -38,7 +39,7 @@ def load_data():
         with open(DATA_FILE, 'r') as f:
             return json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
-        return {"topics": {}, "total_reviews": 0, "categories": {}}
+        return {"topics": {}, "total_reviews": 0, "categories": {}, "streak": {"current": 0, "longest": 0, "last_review": None}}
 
 def save_data(data):
     with open(DATA_FILE, 'w') as f:
@@ -51,7 +52,8 @@ def add_topic(data, topic, category):
             "next_review": datetime.date.today().isoformat(),
             "difficulty": 3,
             "reviews": 0,
-            "category": category
+            "category": category,
+            "review_dates": []
         }
         if category not in data["categories"]:
             data["categories"][category] = []
@@ -67,6 +69,8 @@ def review_topic(data, topic):
         topic_data["level"] += 1
         topic_data["reviews"] += 1
         data["total_reviews"] += 1
+        
+        topic_data["review_dates"].append(datetime.date.today().isoformat())
         
         while True:
             try:
@@ -84,6 +88,7 @@ def review_topic(data, topic):
         days_to_next_review = int(base_days * difficulty_factor)
         
         topic_data["next_review"] = (datetime.date.today() + datetime.timedelta(days=days_to_next_review)).isoformat()
+        update_streak(data)
         save_data(data)
         print(f"Reviewed '{topic}'. Next review in {days_to_next_review} days.")
     else:
@@ -192,6 +197,108 @@ def import_data():
         print("Error occurred while importing data. Make sure the file exists and contains valid JSON.")
         return None
 
+def show_weekly_progress(data):
+    today = datetime.date.today()
+    week_ago = today - datetime.timedelta(days=7)
+    daily_reviews = {(today - datetime.timedelta(days=i)).isoformat(): 0 for i in range(7)}
+
+    for topic in data["topics"].values():
+        for review_date in topic.get("review_dates", []):
+            if review_date in daily_reviews:
+                daily_reviews[review_date] += 1
+
+    print("\nWeekly Progress (Reviews per day):")
+    for date, count in daily_reviews.items():
+        bar = "#" * count
+        print(f"{date}: {bar} ({count})")
+
+def update_streak(data):
+    today = datetime.date.today().isoformat()
+    yesterday = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
+    
+    if "streak" not in data:
+        data["streak"] = {"current": 0, "longest": 0, "last_review": None}
+    
+    if data["streak"]["last_review"] == yesterday:
+        data["streak"]["current"] += 1
+        data["streak"]["longest"] = max(data["streak"]["current"], data["streak"]["longest"])
+    elif data["streak"]["last_review"] != today:
+        data["streak"]["current"] = 1
+    
+    data["streak"]["last_review"] = today
+    save_data(data)
+
+def show_streak(data):
+    if "streak" in data:
+        print(f"\nCurrent streak: {data['streak']['current']} days")
+        print(f"Longest streak: {data['streak']['longest']} days")
+    else:
+        print("\nNo streak data available yet. Start reviewing to build your streak!")
+
+def export_to_csv(data):
+    filename = input("Enter the filename to export data (e.g., 'export.csv'): ")
+    try:
+        with open(filename, 'w', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(["Topic", "Category", "Level", "Next Review", "Difficulty", "Reviews"])
+            for topic, topic_data in data["topics"].items():
+                writer.writerow([
+                    topic,
+                    topic_data["category"],
+                    topic_data["level"],
+                    topic_data["next_review"],
+                    topic_data["difficulty"],
+                    topic_data["reviews"]
+                ])
+        print(f"Data exported successfully to {filename}")
+    except IOError:
+        print("Error occurred while exporting data.")
+
+def import_from_csv():
+    filename = input("Enter the filename to import data from (e.g., 'import.csv'): ")
+    try:
+        imported_data = {"topics": {}, "total_reviews": 0, "categories": {}}
+        with open(filename, 'r') as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                topic = row["Topic"]
+                imported_data["topics"][topic] = {
+                    "category": row["Category"],
+                    "level": int(row["Level"]),
+                    "next_review": row["Next Review"],
+                    "difficulty": int(row["Difficulty"]),
+                    "reviews": int(row["Reviews"])
+                }
+                imported_data["total_reviews"] += int(row["Reviews"])
+                if row["Category"] not in imported_data["categories"]:
+                    imported_data["categories"][row["Category"]] = []
+                imported_data["categories"][row["Category"]].append(topic)
+        print(f"Data imported successfully from {filename}")
+        return imported_data
+    except (IOError, csv.Error):
+        print("Error occurred while importing data. Make sure the file exists and contains valid CSV data.")
+        return None
+
+def show_topic_history(data):
+    topic = input("Enter the topic name to show history: ")
+    if topic in data["topics"]:
+        topic_data = data["topics"][topic]
+        print(f"\nReview history for '{topic}':")
+        print(f"Category: {topic_data['category']}")
+        print(f"Current level: {topic_data['level']}")
+        print(f"Total reviews: {topic_data['reviews']}")
+        print(f"Current difficulty: {topic_data['difficulty']}")
+        print(f"Next review: {topic_data['next_review']}")
+        
+        if "review_dates" in topic_data:
+            print("\nPast reviews:")
+            for date in topic_data["review_dates"]:
+                print(f"- {date}")
+        else:
+            print("\nNo past review data available.")
+    else:
+        print(f"Topic '{topic}' not found.")
+
 def main():
     data = load_data()
     initialize_topics(data)
@@ -204,11 +311,16 @@ def main():
         print("5. Show progress")
         print("6. Start a study session")
         print("7. Show categories")
-        print("8. Export data")
-        print("9. Import data")
-        print("10. Exit")
+        print("8. Export data (JSON)")
+        print("9. Import data (JSON)")
+        print("10. Show weekly progress")
+        print("11. Show streak")
+        print("12. Export data (CSV)")
+        print("13. Import data (CSV)")
+        print("14. Show topic history")
+        print("15. Exit")
 
-        choice = input("Enter your choice (1-10): ")
+        choice = input("Enter your choice (1-15): ")
 
         if choice == '1':
             topic = input("Enter the topic name: ")
@@ -247,10 +359,23 @@ def main():
                 data = imported_data
                 save_data(data)
         elif choice == '10':
-            print("Exiting program. Goodbye!")
+            show_weekly_progress(data)
+        elif choice == '11':
+            show_streak(data)
+        elif choice == '12':
+            export_to_csv(data)
+        elif choice == '13':
+            imported_data = import_from_csv()
+            if imported_data:
+                data = imported_data
+                save_data(data)
+        elif choice == '14':
+            show_topic_history(data)
+        elif choice == '15':
+            print("Exiting program. Bye!")
             break
         else:
-            print("Invalid choice. Please try again.")
+            print("Invalid choice.")
 
 if __name__ == "__main__":
     main()
