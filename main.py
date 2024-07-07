@@ -2,6 +2,7 @@ import datetime
 import json
 import time
 import random
+import os
 
 DATA_FILE = "spaced_repetition_data.json"
 MAX_TOPICS_PER_DAY = 3
@@ -12,23 +13,23 @@ INITIAL_TOPICS = [
     ("Reported Speech", "Grammar"),
     ("The Fun They Had", "Literature"),
     ("The Lost Child", "Literature"),
-    ("Diary Entry", "Grammer"),
+    ("Diary Entry", "Writing"),
     ("Integrated Grammar", "Grammar"),
     ("The Sound Of Music PT.1", "Literature"),
     ("The Sound Of Music PT.2", "Literature"),
     ("The Adventures Of Toto", "Literature"),
-    ("Cells: The Fundamental Units of Life", "Biology"),
-    ("Matter in Our Surroundings", "Chemistry"),
-    ("Is Matter Around Us Pure?", "Chemistry"),
+    ("Cells: The Fundamental Units of Life", "Science"),
+    ("Matter in Our Surroundings", "Science"),
+    ("Is Matter Around Us Pure?", "Science"),
     ("Motion", "Physics"),
     ("Force and Laws of Motion", "Physics"),
-    ("What is Democracy? Why Democracy?", "Political Science"),
-    ("Electoral Politics", "Political Science"),
+    ("What is Democracy? Why Democracy?", "Social Studies"),
+    ("Electoral Politics", "Social Studies"),
     ("The Story of Village Palampur", "Economics"),
     ("People as a Resource", "Economics"),
     ("Lektion 1", "German"),
-    ("Introduction to Python", "AI"),
-    ("Entrepreneurial Skills-I", "AI"),
+    ("Introduction to Python", "Computer Science"),
+    ("Entrepreneurial Skills-I", "Business"),
     ("The French Revolution", "History")
 ]
 
@@ -168,6 +169,29 @@ def show_categories(data):
     for category, topics in data["categories"].items():
         print(f"- {category}: {len(topics)} topics")
 
+def export_data(data):
+    filename = input("Enter the filename to export data (e.g., 'export.json'): ")
+    try:
+        with open(filename, 'w') as f:
+            json.dump(data, f, indent=2)
+        print(f"Data exported successfully to {filename}")
+    except IOError:
+        print("Error occurred while exporting data.")
+
+def import_data():
+    filename = input("Enter the filename to import data from: ")
+    try:
+        with open(filename, 'r') as f:
+            imported_data = json.load(f)
+        if not all(key in imported_data for key in ["topics", "total_reviews", "categories"]):
+            print("Invalid data format in the import file.")
+            return None
+        print(f"Data imported successfully from {filename}")
+        return imported_data
+    except (IOError, json.JSONDecodeError):
+        print("Error occurred while importing data. Make sure the file exists and contains valid JSON.")
+        return None
+
 def main():
     data = load_data()
     initialize_topics(data)
@@ -180,9 +204,11 @@ def main():
         print("5. Show progress")
         print("6. Start a study session")
         print("7. Show categories")
-        print("8. Exit")
+        print("8. Export data")
+        print("9. Import data")
+        print("10. Exit")
 
-        choice = input("Enter your choice (1-8): ")
+        choice = input("Enter your choice (1-10): ")
 
         if choice == '1':
             topic = input("Enter the topic name: ")
@@ -214,6 +240,13 @@ def main():
         elif choice == '7':
             show_categories(data)
         elif choice == '8':
+            export_data(data)
+        elif choice == '9':
+            imported_data = import_data()
+            if imported_data:
+                data = imported_data
+                save_data(data)
+        elif choice == '10':
             print("Exiting program. Goodbye!")
             break
         else:
