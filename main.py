@@ -1,5 +1,7 @@
 import datetime
 import json
+import time
+import random
 
 DATA_FILE = "spaced_repetition_data.json"
 MAX_TOPICS_PER_DAY = 3
@@ -107,6 +109,31 @@ def show_progress(data):
     for topic, topic_data in sorted_topics:
         print(f"- {topic}: {topic_data['reviews']} reviews")
 
+def study_session(data):
+    try:
+        duration = int(input("Enter the duration of the study session in minutes: "))
+    except ValueError:
+        print("Please enter a valid number of minutes.")
+        return
+
+    end_time = time.time() + duration * 60
+    topics_reviewed = 0
+
+    while time.time() < end_time:
+        due_topics = get_topics_to_review(data)
+        if not due_topics:
+            print("No more topics to review. Session ended early.")
+            break
+
+        topic = random.choice(due_topics)
+        print(f"\nTime remaining: {int((end_time - time.time()) / 60)} minutes")
+        print(f"Review topic: {topic}")
+        input("Press Enter when you're ready to rate the difficulty...")
+        review_topic(data, topic)
+        topics_reviewed += 1
+
+    print(f"\nSession ended. You reviewed {topics_reviewed} topic(s) in this session.")
+
 def main():
     data = load_data()
     initialize_topics(data)
@@ -117,9 +144,10 @@ def main():
         print("3. Show topics to review today")
         print("4. Show all topics")
         print("5. Show progress")
-        print("6. Exit")
+        print("6. Start a study session")
+        print("7. Exit")
 
-        choice = input("Enter your choice (1-6): ")
+        choice = input("Enter your choice (1-7): ")
 
         if choice == '1':
             topic = input("Enter the topic name: ")
@@ -145,6 +173,8 @@ def main():
         elif choice == '5':
             show_progress(data)
         elif choice == '6':
+            study_session(data)
+        elif choice == '7':
             print("Exiting program. Goodbye!")
             break
         else:
