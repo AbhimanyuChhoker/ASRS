@@ -103,9 +103,12 @@ def get_topics_to_review(data, category=None):
         due_topics = [topic for topic, topic_data in data["topics"].items() 
                       if topic_data["next_review"] <= today]
     
-    if len(due_topics) > MAX_TOPICS_PER_DAY:
-        topics_for_today = due_topics[:MAX_TOPICS_PER_DAY]
-        topics_for_tomorrow = due_topics[MAX_TOPICS_PER_DAY:]
+    # Sort topics by their due date, with overdue topics first
+    sorted_topics = sorted(due_topics, key=lambda x: data["topics"][x]["next_review"])
+    
+    if len(sorted_topics) > MAX_TOPICS_PER_DAY:
+        topics_for_today = sorted_topics[:MAX_TOPICS_PER_DAY]
+        topics_for_tomorrow = sorted_topics[MAX_TOPICS_PER_DAY:]
         
         tomorrow = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
         for topic in topics_for_tomorrow:
@@ -115,8 +118,7 @@ def get_topics_to_review(data, category=None):
         print(f"Rescheduled {len(topics_for_tomorrow)} topic(s) for tomorrow.")
         return topics_for_today
     else:
-        return due_topics
-
+        return sorted_topics
 def initialize_topics(data):
     for topic, category in INITIAL_TOPICS:
         if topic not in data["topics"]:
