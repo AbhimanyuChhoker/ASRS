@@ -35,11 +35,27 @@ INITIAL_TOPICS = [
 ]
 
 def load_data():
+    if not os.path.exists(DATA_FILE):
+        initial_data = {
+            "topics": {},
+            "total_reviews": 0,
+            "categories": {},
+            "streak": {"current": 0, "longest": 0, "last_review": None}
+        }
+        save_data(initial_data)
+        return initial_data
+    
     try:
         with open(DATA_FILE, 'r') as f:
             return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        return {"topics": {}, "total_reviews": 0, "categories": {}, "streak": {"current": 0, "longest": 0, "last_review": None}}
+    except json.JSONDecodeError:
+        print("Error reading the data file. Creating a new one.")
+        return {
+            "topics": {},
+            "total_reviews": 0,
+            "categories": {},
+            "streak": {"current": 0, "longest": 0, "last_review": None}
+        }
 
 def save_data(data):
     with open(DATA_FILE, 'w') as f:
