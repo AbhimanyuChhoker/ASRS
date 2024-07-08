@@ -9,6 +9,9 @@ from collections import defaultdict
 import pygame
 from pygame import mixer
 
+#TODO: Add feature to automatically download music files from youtube
+#TODO: Create fallback for pygame.music for directory not found
+
 DATA_FILE = "spaced_repetition_data.json"
 MAX_TOPICS_PER_DAY = 3
 
