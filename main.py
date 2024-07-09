@@ -9,8 +9,9 @@ from collections import defaultdict
 import pygame
 from pygame import mixer
 from pytube import YouTube
+import ssl
+ssl._create_default_https_context = ssl._create_unverified_context # for SSL Certificate Verification Failed
 
-# TODO: Add feature to automatically download music files from youtube
 
 DATA_FILE = "spaced_repetition_data.json"
 MAX_TOPICS_PER_DAY = 3
@@ -47,6 +48,7 @@ class SpacedRepetitionSystem:
         self.data: Dict[str, Any] = self.load_data()
         self.subjects: Dict[str, set] = defaultdict(set)
         self._initialize_subjects()
+        self.homework = {}
         pygame.init()
         mixer.init()
         self.music_playing = False
@@ -57,19 +59,30 @@ class SpacedRepetitionSystem:
                 "topics": {},
                 "total_reviews": 0,
                 "subjects": {},
-                "streak": {"current": 0, "longest": 0, "last_review": None},
+                "streak": {"current": 0, "longest": 0, "last_review": None, "last_homework": None},
+                "homework": {},
+                "total_homework_completed": 0
             }
 
         try:
             with open(DATA_FILE, "r") as f:
-                return json.load(f)
+                data = json.load(f)
+                if "homework" not in data:
+                    data["homework"] = {}
+                if "total_homework_completed" not in data:
+                    data["total_homework_completed"] = 0
+                if "last_homework" not in data["streak"]:
+                    data["streak"]["last_homework"] = None
+                return data
         except json.JSONDecodeError:
             print("Error reading the data file. Creating a new one.")
             return {
                 "topics": {},
                 "total_reviews": 0,
                 "subjects": {},
-                "streak": {"current": 0, "longest": 0, "last_review": None},
+                "streak": {"current": 0, "longest": 0, "last_review": None, "last_homework": None},
+                "homework": {},
+                "total_homework_completed": 0
             }
 
     def _initialize_subjects(self):
@@ -78,7 +91,14 @@ class SpacedRepetitionSystem:
 
     def save_data(self):
         with open(DATA_FILE, "w") as f:
-            json.dump(self.data, f, indent=2)
+            json.dump({
+                "topics": self.data["topics"],
+                "total_reviews": self.data["total_reviews"],
+                "subjects": self.data["subjects"],
+                "streak": self.data["streak"],
+                "homework": self.homework,
+                "total_homework_completed": self.data.get("total_homework_completed", 0)
+            }, f, indent=2)
 
     def add_topic(self, topic: str, subject: str):
         if topic not in self.data["topics"]:
@@ -169,15 +189,18 @@ class SpacedRepetitionSystem:
     def show_progress(self):
         total_topics = len(self.data["topics"])
         total_reviews = self.data["total_reviews"]
-        topics_reviewed = sum(
-            1 for topic in self.data["topics"].values() if topic["reviews"] > 0
-        )
+        total_homework = len(self.homework)
+        total_homework_completed = self.data.get("total_homework_completed", 0)
+        topics_reviewed = sum(1 for topic in self.data["topics"].values() if topic["reviews"] > 0)
 
         print(f"\nProgress Report:")
         print(f"Total topics: {total_topics}")
         print(f"Topics reviewed at least once: {topics_reviewed}")
         print(f"Total reviews: {total_reviews}")
         print(f"Average reviews per topic: {total_reviews / total_topics:.2f}")
+        print(f"Total homework assigned: {total_homework}")
+        print(f"Total homework completed: {total_homework_completed}")
+        print(f"Homework completion rate: {(total_homework_completed / total_homework * 100) if total_homework else 0:.2f}%")
 
         print("\nTop 5 most reviewed topics:")
         sorted_topics = sorted(
@@ -241,48 +264,57 @@ class SpacedRepetitionSystem:
         if not self.music_playing:
             music_dir = "music"
             if not os.path.exists(music_dir):
-                print("Music directory does not exist")
+                print("Music directory does not exist. Creating...")
+                os.mkdir(music_dir)
+            music_files = [f for f in os.listdir(music_dir) if f.endswith(".mp3")]
+            if music_files:
+                music_file = os.path.join(music_dir, random.choice(music_files))
+                mixer.music.load(music_file)
+                mixer.music.play(-1)
+                self.music_started = True
+                print("Music started.")
             else:
-                music_files = [f for f in os.listdir(music_dir) if f.endswith(".mp3")]
-                if music_files:
-                    music_file = os.path.join(music_dir, random.choice(music_files))
-                    mixer.music.load(music_file)
-                    mixer.music.play(-1)
-                    self.music_started = True
-                    print("Music started.")
-                else:
-                    print("No music data available.")
+                print("No music data available.")
         else:
             mixer.music.stop()
             self.music_started = False
             print("Music stopped")
     
-    def download_music(url, download_path="music"):
+    def download_music(self, download_path="music"):
         if not os.path.exists(download_path):
             os.makedirs(download_path)
         print("You can download music from YouTube")
         print("Options are: ")
         print("1. Piano music")
         print("2. Lofi music")
-        choice = input("Enter a choice or paste url of you video you want to download: ")
-        if choice == 1 or 2 or 3:
-            print("Downloading music")
-            if choice == 1:
-                url = "https://www.youtube.com/watch?v=sAcj8me7wGI"
-                yt = YouTube(url)
-                audio_stream = yt.streams.filter(only_audio=True).first()
-                audio_stream.download(output_path=download_path)
-                print(f"{yt.title} downloaded successfully to {download_path}")
-            elif choice == 2:
-                url = "https://www.youtube.com/watch?v=CfPxlb8-ZQ0"
-                yt = YouTube(url)
-                audio_stream = yt.streams.filter(only_audio=True).first()
-                audio_stream.download(output_path=download_path)
-                print(f"{yt.title} downloaded successfully to {download_path}")
-        yt = YouTube(url)
-        audio_stream = yt.streams.filter(only_audio=True).first()
-        audio_stream.download(output_path=download_path)
-        print(f"{yt.title} downloaded successfully to {download_path}")
+        print("3. Custom URL")
+        choice = input("Enter your choice (1, 2, or 3): ")
+        
+        url = ""
+        if choice == "1":
+            url = "https://www.youtube.com/watch?v=sAcj8me7wGI"
+        elif choice == "2":
+            url = "https://www.youtube.com/watch?v=CfPxlb8-ZQ0"
+        elif choice == "3":
+            url = input("Paste the URL of the YouTube video you want to download: ")
+        else:
+            print("Invalid choice. Exiting download function.")
+            return
+
+        if not url:
+            print("No valid URL selected. Exiting download function.")
+            return
+
+        try:
+            yt = YouTube(url)
+            audio_stream = yt.streams.filter(only_audio=True).first()
+            out_file = audio_stream.download(output_path=download_path)
+            base, ext = os.path.splitext(out_file)
+            new_file = base + '.mp3'
+            os.rename(out_file, new_file)
+            print(f"{yt.title} downloaded successfully to {download_path}")
+        except Exception as e:
+            print(f"An error occurred while downloading: {str(e)}")
 
     def show_subjects(self):
         print("\nsubjects:")
@@ -334,24 +366,29 @@ class SpacedRepetitionSystem:
             bar = "#" * count
             print(f"{date}: {bar} ({count})")
 
-    def update_streak(self):
+    def update_streak(self, homework=False):
         today = datetime.date.today().isoformat()
         yesterday = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
 
-        if self.data["streak"]["last_review"] == yesterday:
+        if self.data["streak"]["last_review"] == yesterday or (homework and self.data["streak"]["last_homework"] == yesterday):
             self.data["streak"]["current"] += 1
             self.data["streak"]["longest"] = max(
                 self.data["streak"]["current"], self.data["streak"]["longest"]
             )
-        elif self.data["streak"]["last_review"] != today:
+        elif self.data["streak"]["last_review"] != today and (not homework or self.data["streak"]["last_homework"] != today):
             self.data["streak"]["current"] = 1
 
-        self.data["streak"]["last_review"] = today
+        if homework:
+            self.data["streak"]["last_homework"] = today
+        else:
+            self.data["streak"]["last_review"] = today
         self.save_data()
 
     def show_streak(self):
         print(f"\nCurrent streak: {self.data['streak']['current']} days")
         print(f"Longest streak: {self.data['streak']['longest']} days")
+        print(f"Last review: {self.data['streak']['last_review']}")
+        print(f"Last homework completion: {self.data['streak'].get('last_homework', 'Never')}")
 
     def export_to_csv(self):
         filename = input("Enter the filename to export data (e.g., 'export.csv'): ")
@@ -432,6 +469,40 @@ class SpacedRepetitionSystem:
                 print("\nNo past review data available.")
         else:
             print(f"Topic '{topic}' not found.")
+    def add_homework(self, subject, description, due_date):
+        homework_id = len(self.homework) + 1
+        self.homework[homework_id] = {
+            "subject": subject,
+            "description": description,
+            "due_date": due_date,
+            "completed": False
+        }
+        print(f"Homework added with ID: {homework_id}")
+        self.save_data()
+
+    def complete_homework(self, homework_id):
+        if homework_id in self.homework:
+            if not self.homework[homework_id]["completed"]:
+                self.homework[homework_id]["completed"] = True
+                self.homework[homework_id]["completion_date"] = datetime.date.today().isoformat()
+                self.data["total_homework_completed"] = self.data.get("total_homework_completed", 0) + 1
+                self.update_streak(homework=True)
+                print(f"Homework (ID: {homework_id}) marked as completed.")
+                self.save_data()
+            else:
+                print(f"Homework (ID: {homework_id}) was already completed.")
+        else:
+            print(f"Homework with ID {homework_id} not found.")
+
+    def show_homework(self):
+        if not self.homework:
+            print("No homework assigned.")
+            return
+        
+        print("\nCurrent Homework:")
+        for id, hw in self.homework.items():
+            status = "Completed" if hw["completed"] else "Pending"
+            print(f"ID: {id}, Subject: {hw['subject']}, Description: {hw['description']}, Due: {hw['due_date']}, Status: {status}")
 
 
 def initialize_topics(srs):
@@ -462,9 +533,13 @@ def main():
         print("14. Show topic history")
         print("15. Toggle music")
         print("16. Download music(YouTube)")
-        print("17. Exit")
+        print("17. Add homework")
+        print("18. Complete homework")
+        print("19. Show homework")
+        print("20. Exit")
 
-        choice = input("Enter your choice (1-16): ")
+        choice = input("Enter your choice (1-20): ")
+    
 
         if choice == "1":
             topic = input("Enter the topic name: ")
@@ -520,12 +595,22 @@ def main():
         elif choice == "16":
             srs.download_music()
         elif choice == "17":
+            subject = input("Enter the subject for the homework: ")
+            description = input("Enter the homework description: ")
+            due_date = input("Enter the due date (YYYY-MM-DD): ")
+            srs.add_homework(subject, description, due_date)
+        elif choice == "18":
+            homework_id = int(input("Enter the homework ID to mark as completed: "))
+            srs.complete_homework(homework_id)
+        elif choice == "19":
+            srs.show_homework()
+        elif choice == "20":
             if srs.music_playing:
                 srs.toggle_music()
             print("Exiting program. Bye!")
             break
         else:
-            print("Invalid choice. Please enter a number between 1 and 15.")
+            print("Invalid choice. Please enter a number between 1 and 20.")
 
 
 if __name__ == "__main__":
