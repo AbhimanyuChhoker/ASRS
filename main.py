@@ -274,13 +274,7 @@ class SpacedRepetitionSystem:
                 audio_stream.download(output_path=download_path)
                 print(f"{yt.title} downloaded successfully to {download_path}")
             elif choice == 2:
-                url = "https://www.youtube.com/watch?v=i-pY6Q08f2I"
-                yt = YouTube(url)
-                audio_stream = yt.streams.filter(only_audio=True).first()
-                audio_stream.download(output_path=download_path)
-                print(f"{yt.title} downloaded successfully to {download_path}")
-            elif choice == 3:
-                url = "https://www.youtube.com/watch?v=w5q45lR6g9E"
+                url = "https://www.youtube.com/watch?v=CfPxlb8-ZQ0"
                 yt = YouTube(url)
                 audio_stream = yt.streams.filter(only_audio=True).first()
                 audio_stream.download(output_path=download_path)
