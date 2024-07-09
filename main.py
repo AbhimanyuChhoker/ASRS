@@ -10,8 +10,6 @@ import pygame
 from pygame import mixer
 from pytube import YouTube
 
-#TODO: Integrate spotify
-#TODO: Add feature to add and track homework 
 
 DATA_FILE = "spaced_repetition_data.json"
 MAX_TOPICS_PER_DAY = 3
