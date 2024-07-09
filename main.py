@@ -8,6 +8,7 @@ from typing import Dict, List, Any
 from collections import defaultdict
 import pygame
 from pygame import mixer
+from pytube import YouTube
 
 # TODO: Add feature to automatically download music files from youtube
 
@@ -255,6 +256,39 @@ class SpacedRepetitionSystem:
             mixer.music.stop()
             self.music_started = False
             print("Music stopped")
+    
+    def download_music(url, download_path="music"):
+        if not os.path.exists(download_path):
+            os.makedirs(download_path)
+        print("You can download music from YouTube")
+        print("Options are: ")
+        print("1. Piano music")
+        print("2. Lofi music")
+        choice = input("Enter a choice or paste url of you video you want to download: ")
+        if choice == 1 or 2 or 3:
+            print("Downloading music")
+            if choice == 1:
+                url = "https://www.youtube.com/watch?v=sAcj8me7wGI"
+                yt = YouTube(url)
+                audio_stream = yt.streams.filter(only_audio=True).first()
+                audio_stream.download(output_path=download_path)
+                print(f"{yt.title} downloaded successfully to {download_path}")
+            elif choice == 2:
+                url = "https://www.youtube.com/watch?v=i-pY6Q08f2I"
+                yt = YouTube(url)
+                audio_stream = yt.streams.filter(only_audio=True).first()
+                audio_stream.download(output_path=download_path)
+                print(f"{yt.title} downloaded successfully to {download_path}")
+            elif choice == 3:
+                url = "https://www.youtube.com/watch?v=w5q45lR6g9E"
+                yt = YouTube(url)
+                audio_stream = yt.streams.filter(only_audio=True).first()
+                audio_stream.download(output_path=download_path)
+                print(f"{yt.title} downloaded successfully to {download_path}")
+        yt = YouTube(url)
+        audio_stream = yt.streams.filter(only_audio=True).first()
+        audio_stream.download(output_path=download_path)
+        print(f"{yt.title} downloaded successfully to {download_path}")
 
     def show_subjects(self):
         print("\nsubjects:")
