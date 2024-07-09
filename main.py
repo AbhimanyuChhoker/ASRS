@@ -9,6 +9,8 @@ from collections import defaultdict
 import pygame
 from pygame import mixer
 from pytube import YouTube
+import ssl
+ssl._create_default_https_context = ssl._create_unverified_context # for SSL Certificate Verification Failed
 
 
 DATA_FILE = "spaced_repetition_data.json"
@@ -240,48 +242,57 @@ class SpacedRepetitionSystem:
         if not self.music_playing:
             music_dir = "music"
             if not os.path.exists(music_dir):
-                print("Music directory does not exist")
+                print("Music directory does not exist. Creating...")
+                os.mkdir(music_dir)
+            music_files = [f for f in os.listdir(music_dir) if f.endswith(".mp3")]
+            if music_files:
+                music_file = os.path.join(music_dir, random.choice(music_files))
+                mixer.music.load(music_file)
+                mixer.music.play(-1)
+                self.music_started = True
+                print("Music started.")
             else:
-                music_files = [f for f in os.listdir(music_dir) if f.endswith(".mp3")]
-                if music_files:
-                    music_file = os.path.join(music_dir, random.choice(music_files))
-                    mixer.music.load(music_file)
-                    mixer.music.play(-1)
-                    self.music_started = True
-                    print("Music started.")
-                else:
-                    print("No music data available.")
+                print("No music data available.")
         else:
             mixer.music.stop()
             self.music_started = False
             print("Music stopped")
     
-    def download_music(url, download_path="music"):
+    def download_music(self, download_path="music"):
         if not os.path.exists(download_path):
             os.makedirs(download_path)
         print("You can download music from YouTube")
         print("Options are: ")
         print("1. Piano music")
         print("2. Lofi music")
-        choice = input("Enter a choice or paste url of you video you want to download: ")
-        if choice == 1 or 2 or 3:
-            print("Downloading music")
-            if choice == 1:
-                url = "https://www.youtube.com/watch?v=sAcj8me7wGI"
-                yt = YouTube(url)
-                audio_stream = yt.streams.filter(only_audio=True).first()
-                audio_stream.download(output_path=download_path)
-                print(f"{yt.title} downloaded successfully to {download_path}")
-            elif choice == 2:
-                url = "https://www.youtube.com/watch?v=CfPxlb8-ZQ0"
-                yt = YouTube(url)
-                audio_stream = yt.streams.filter(only_audio=True).first()
-                audio_stream.download(output_path=download_path)
-                print(f"{yt.title} downloaded successfully to {download_path}")
-        yt = YouTube(url)
-        audio_stream = yt.streams.filter(only_audio=True).first()
-        audio_stream.download(output_path=download_path)
-        print(f"{yt.title} downloaded successfully to {download_path}")
+        print("3. Custom URL")
+        choice = input("Enter your choice (1, 2, or 3): ")
+        
+        url = ""
+        if choice == "1":
+            url = "https://www.youtube.com/watch?v=sAcj8me7wGI"
+        elif choice == "2":
+            url = "https://www.youtube.com/watch?v=CfPxlb8-ZQ0"
+        elif choice == "3":
+            url = input("Paste the URL of the YouTube video you want to download: ")
+        else:
+            print("Invalid choice. Exiting download function.")
+            return
+
+        if not url:
+            print("No valid URL selected. Exiting download function.")
+            return
+
+        try:
+            yt = YouTube(url)
+            audio_stream = yt.streams.filter(only_audio=True).first()
+            out_file = audio_stream.download(output_path=download_path)
+            base, ext = os.path.splitext(out_file)
+            new_file = base + '.mp3'
+            os.rename(out_file, new_file)
+            print(f"{yt.title} downloaded successfully to {download_path}")
+        except Exception as e:
+            print(f"An error occurred while downloading: {str(e)}")
 
     def show_subjects(self):
         print("\nsubjects:")
