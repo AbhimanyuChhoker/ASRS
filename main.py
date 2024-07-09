@@ -461,7 +461,8 @@ def main():
         print("13. Import data (CSV)")
         print("14. Show topic history")
         print("15. Toggle music")
-        print("16. Exit")
+        print("16. Download music(YouTube)")
+        print("17. Exit")
 
         choice = input("Enter your choice (1-16): ")
 
@@ -517,6 +518,8 @@ def main():
         elif choice == "15":
             srs.toggle_music()
         elif choice == "16":
+            srs.download_music()
+        elif choice == "17":
             if srs.music_playing:
                 srs.toggle_music()
             print("Exiting program. Bye!")
