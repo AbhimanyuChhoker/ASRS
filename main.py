@@ -526,7 +526,7 @@ def main():
             print("Exiting program. Bye!")
             break
         else:
-            print("Invalid choice. Please enter a number between 1 and 15.")
+            print("Invalid choice. Please enter a number between 1 and 17.")
 
 
 if __name__ == "__main__":
