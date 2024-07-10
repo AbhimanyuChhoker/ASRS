@@ -279,42 +279,6 @@ class SpacedRepetitionSystem:
             mixer.music.stop()
             self.music_started = False
             print("Music stopped")
-    
-    def download_music(self, download_path="music"):
-        if not os.path.exists(download_path):
-            os.makedirs(download_path)
-        print("You can download music from YouTube")
-        print("Options are: ")
-        print("1. Piano music")
-        print("2. Lofi music")
-        print("3. Custom URL")
-        choice = input("Enter your choice (1, 2, or 3): ")
-        
-        url = ""
-        if choice == "1":
-            url = "https://www.youtube.com/watch?v=sAcj8me7wGI"
-        elif choice == "2":
-            url = "https://www.youtube.com/watch?v=CfPxlb8-ZQ0"
-        elif choice == "3":
-            url = input("Paste the URL of the YouTube video you want to download: ")
-        else:
-            print("Invalid choice. Exiting download function.")
-            return
-
-        if not url:
-            print("No valid URL selected. Exiting download function.")
-            return
-
-        try:
-            yt = YouTube(url)
-            audio_stream = yt.streams.filter(only_audio=True).first()
-            out_file = audio_stream.download(output_path=download_path)
-            base, ext = os.path.splitext(out_file)
-            new_file = base + '.mp3'
-            os.rename(out_file, new_file)
-            print(f"{yt.title} downloaded successfully to {download_path}")
-        except Exception as e:
-            print(f"An error occurred while downloading: {str(e)}")
 
     def show_subjects(self):
         print("\nsubjects:")
@@ -532,13 +496,12 @@ def main():
         print("13. Import data (CSV)")
         print("14. Show topic history")
         print("15. Toggle music")
-        print("16. Download music(YouTube)")
-        print("17. Add homework")
-        print("18. Complete homework")
-        print("19. Show homework")
-        print("20. Exit")
+        print("16. Add homework")
+        print("17. Complete homework")
+        print("18. Show homework")
+        print("19. Exit")
 
-        choice = input("Enter your choice (1-20): ")
+        choice = input("Enter your choice (1-19): ")
     
 
         if choice == "1":
@@ -593,18 +556,16 @@ def main():
         elif choice == "15":
             srs.toggle_music()
         elif choice == "16":
-            srs.download_music()
-        elif choice == "17":
             subject = input("Enter the subject for the homework: ")
             description = input("Enter the homework description: ")
             due_date = input("Enter the due date (YYYY-MM-DD): ")
             srs.add_homework(subject, description, due_date)
-        elif choice == "18":
+        elif choice == "17":
             homework_id = int(input("Enter the homework ID to mark as completed: "))
             srs.complete_homework(homework_id)
-        elif choice == "19":
+        elif choice == "18":
             srs.show_homework()
-        elif choice == "20":
+        elif choice == "19":
             if srs.music_playing:
                 srs.toggle_music()
             print("Exiting program. Bye!")
