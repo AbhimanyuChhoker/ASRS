@@ -284,22 +284,22 @@ class SpacedRepetitionSystem:
         for subject, topics in self.subjects.items():
             print(f"- {subject}: {len(topics)} topics")
 
-def export_data(self):
-    filename = input("Enter the filename to export data (e.g., 'export.json'): ")
-    try:
-        export_data = {
-            "topics": self.data["topics"],
-            "total_reviews": self.data["total_reviews"],
-            "subjects": self.data["subjects"],
-            "streak": self.data["streak"],
-            "homework": self.homework,
-            "total_homework_completed": self.data.get("total_homework_completed", 0)
-        }
-        with open(filename, "w") as f:
-            json.dump(export_data, f, indent=2)
-        print(f"Data exported successfully to {filename}")
-    except IOError:
-        print("Error occurred while exporting data.")
+    def export_data(self):
+        filename = input("Enter the filename to export data (e.g., 'export.json'): ")
+        try:
+            export_data = {
+                "topics": self.data["topics"],
+                "total_reviews": self.data["total_reviews"],
+                "subjects": self.data["subjects"],
+                "streak": self.data["streak"],
+                "homework": self.homework,
+                "total_homework_completed": self.data.get("total_homework_completed", 0)
+            }
+            with open(filename, "w") as f:
+                json.dump(export_data, f, indent=2)
+            print(f"Data exported successfully to {filename}")
+        except IOError:
+            print("Error occurred while exporting data.")
 
     def import_data(self):
         filename = input("Enter the filename to import data from: ")
