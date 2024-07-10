@@ -260,7 +260,11 @@ class SpacedRepetitionSystem:
         )
 
     def toggle_music(self):
-        if not self.music_playing:
+        if self.music_playing:
+            mixer.music.stop()
+            self.music_playing = False
+            print("Music stopped")
+        else:
             music_dir = "music"
             if not os.path.exists(music_dir):
                 print("Music directory does not exist. Creating...")
@@ -270,14 +274,10 @@ class SpacedRepetitionSystem:
                 music_file = os.path.join(music_dir, random.choice(music_files))
                 mixer.music.load(music_file)
                 mixer.music.play(-1)
-                self.music_started = True
+                self.music_playing = True
                 print("Music started.")
             else:
-                print("No music data available.")
-        else:
-            mixer.music.stop()
-            self.music_started = False
-            print("Music stopped")
+                print("No music files available.")
 
     def show_subjects(self):
         print("\nsubjects:")
