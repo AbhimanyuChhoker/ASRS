@@ -3,7 +3,6 @@ import json
 import time
 import random
 import os
-import csv
 from typing import Dict, List, Any
 from collections import defaultdict
 import pygame
@@ -279,42 +278,6 @@ class SpacedRepetitionSystem:
             mixer.music.stop()
             self.music_started = False
             print("Music stopped")
-    
-    def download_music(self, download_path="music"):
-        if not os.path.exists(download_path):
-            os.makedirs(download_path)
-        print("You can download music from YouTube")
-        print("Options are: ")
-        print("1. Piano music")
-        print("2. Lofi music")
-        print("3. Custom URL")
-        choice = input("Enter your choice (1, 2, or 3): ")
-        
-        url = ""
-        if choice == "1":
-            url = "https://www.youtube.com/watch?v=sAcj8me7wGI"
-        elif choice == "2":
-            url = "https://www.youtube.com/watch?v=CfPxlb8-ZQ0"
-        elif choice == "3":
-            url = input("Paste the URL of the YouTube video you want to download: ")
-        else:
-            print("Invalid choice. Exiting download function.")
-            return
-
-        if not url:
-            print("No valid URL selected. Exiting download function.")
-            return
-
-        try:
-            yt = YouTube(url)
-            audio_stream = yt.streams.filter(only_audio=True).first()
-            out_file = audio_stream.download(output_path=download_path)
-            base, ext = os.path.splitext(out_file)
-            new_file = base + '.mp3'
-            os.rename(out_file, new_file)
-            print(f"{yt.title} downloaded successfully to {download_path}")
-        except Exception as e:
-            print(f"An error occurred while downloading: {str(e)}")
 
     def show_subjects(self):
         print("\nsubjects:")
@@ -324,8 +287,16 @@ class SpacedRepetitionSystem:
     def export_data(self):
         filename = input("Enter the filename to export data (e.g., 'export.json'): ")
         try:
+            export_data = {
+                "topics": self.data["topics"],
+                "total_reviews": self.data["total_reviews"],
+                "subjects": self.data["subjects"],
+                "streak": self.data["streak"],
+                "homework": self.homework,
+                "total_homework_completed": self.data.get("total_homework_completed", 0)
+            }
             with open(filename, "w") as f:
-                json.dump(self.data, f, indent=2)
+                json.dump(export_data, f, indent=2)
             print(f"Data exported successfully to {filename}")
         except IOError:
             print("Error occurred while exporting data.")
@@ -390,66 +361,7 @@ class SpacedRepetitionSystem:
         print(f"Last review: {self.data['streak']['last_review']}")
         print(f"Last homework completion: {self.data['streak'].get('last_homework', 'Never')}")
 
-    def export_to_csv(self):
-        filename = input("Enter the filename to export data (e.g., 'export.csv'): ")
-        try:
-            with open(filename, "w", newline="") as csvfile:
-                writer = csv.writer(csvfile)
-                writer.writerow(
-                    [
-                        "Topic",
-                        "subject",
-                        "Level",
-                        "Next Review",
-                        "Difficulty",
-                        "Reviews",
-                    ]
-                )
-                for topic, topic_data in self.data["topics"].items():
-                    writer.writerow(
-                        [
-                            topic,
-                            topic_data["subject"],
-                            topic_data["level"],
-                            topic_data["next_review"],
-                            topic_data["difficulty"],
-                            topic_data["reviews"],
-                        ]
-                    )
-            print(f"Data exported successfully to {filename}")
-        except IOError:
-            print("Error occurred while exporting data.")
-
-    def import_from_csv(self):
-        filename = input(
-            "Enter the filename to import data from (e.g., 'import.csv'): "
-        )
-        try:
-            imported_data = {"topics": {}, "total_reviews": 0, "subjects": {}}
-            with open(filename, "r") as csvfile:
-                reader = csv.DictReader(csvfile)
-                for row in reader:
-                    topic = row["Topic"]
-                    imported_data["topics"][topic] = {
-                        "subject": row["subject"],
-                        "level": int(row["Level"]),
-                        "next_review": row["Next Review"],
-                        "difficulty": int(row["Difficulty"]),
-                        "reviews": int(row["Reviews"]),
-                    }
-                    imported_data["total_reviews"] += int(row["Reviews"])
-                    if row["subject"] not in imported_data["subjects"]:
-                        imported_data["subjects"][row["subject"]] = []
-                    imported_data["subjects"][row["subject"]].append(topic)
-            self.data = imported_data
-            self._initialize_subjects()
-            self.save_data()
-            print(f"Data imported successfully from {filename}")
-        except (IOError, csv.Error):
-            print(
-                "Error occurred while importing data. Make sure the file exists and contains valid CSV data."
-            )
-
+    
     def show_topic_history(self):
         topic = input("Enter the topic name to show history: ")
         if topic in self.data["topics"]:
@@ -528,18 +440,14 @@ def main():
         print("9. Import data (JSON)")
         print("10. Show weekly progress")
         print("11. Show streak")
-        print("12. Export data (CSV)")
-        print("13. Import data (CSV)")
-        print("14. Show topic history")
-        print("15. Toggle music")
-        print("16. Download music(YouTube)")
-        print("17. Add homework")
-        print("18. Complete homework")
-        print("19. Show homework")
-        print("20. Exit")
+        print("12. Show topic history")
+        print("13. Toggle music")
+        print("14. Add homework")
+        print("15. Complete homework")
+        print("16. Show homework")
+        print("17. Exit")
 
-        choice = input("Enter your choice (1-20): ")
-    
+        choice = input("Enter your choice (1-17): ")
 
         if choice == "1":
             topic = input("Enter the topic name: ")
@@ -549,25 +457,19 @@ def main():
             topic = input("Enter the topic to review: ")
             srs.review_topic(topic)
         elif choice == "3":
-            subject = input(
-                "Enter a subject (or press Enter for all subjects): "
-            ).strip()
+            subject = input("Enter a subject (or press Enter for all subjects): ").strip()
             topics_to_review = srs.get_topics_to_review(subject if subject else None)
             if topics_to_review:
                 print(f"Topics to review today (max {MAX_TOPICS_PER_DAY}):")
                 for topic in topics_to_review:
-                    print(
-                        f"- {topic} (subject: {srs.data['topics'][topic]['subject']})"
-                    )
+                    print(f"- {topic} (subject: {srs.data['topics'][topic]['subject']})")
             else:
                 print("No topics to review today.")
         elif choice == "4":
             if srs.data["topics"]:
                 print("All topics:")
                 for topic, topic_data in srs.data["topics"].items():
-                    print(
-                        f"- {topic} (subject: {topic_data['subject']}, Next review: {topic_data['next_review']}, Difficulty: {topic_data['difficulty']}, Reviews: {topic_data['reviews']})"
-                    )
+                    print(f"- {topic} (subject: {topic_data['subject']}, Next review: {topic_data['next_review']}, Difficulty: {topic_data['difficulty']}, Reviews: {topic_data['reviews']})")
             else:
                 print("No topics added yet.")
         elif choice == "5":
@@ -585,33 +487,26 @@ def main():
         elif choice == "11":
             srs.show_streak()
         elif choice == "12":
-            srs.export_to_csv()
-        elif choice == "13":
-            srs.import_from_csv()
-        elif choice == "14":
             srs.show_topic_history()
-        elif choice == "15":
+        elif choice == "13":
             srs.toggle_music()
-        elif choice == "16":
-            srs.download_music()
-        elif choice == "17":
+        elif choice == "14":
             subject = input("Enter the subject for the homework: ")
             description = input("Enter the homework description: ")
             due_date = input("Enter the due date (YYYY-MM-DD): ")
             srs.add_homework(subject, description, due_date)
-        elif choice == "18":
+        elif choice == "15":
             homework_id = int(input("Enter the homework ID to mark as completed: "))
             srs.complete_homework(homework_id)
-        elif choice == "19":
+        elif choice == "16":
             srs.show_homework()
-        elif choice == "20":
+        elif choice == "17":
             if srs.music_playing:
                 srs.toggle_music()
             print("Exiting program. Bye!")
             break
         else:
-            print("Invalid choice. Please enter a number between 1 and 20.")
-
+            print("Invalid choice. Please enter a number between 1 and 17.")
 
 if __name__ == "__main__":
     main()
