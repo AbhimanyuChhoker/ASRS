@@ -15,32 +15,6 @@ import ssl
 DATA_FILE = "spaced_repetition_data.json"
 MAX_TOPICS_PER_DAY = 3
 
-INITIAL_TOPICS = [
-    ("Road Not Taken", "Literature"),
-    ("Wind", "Literature"),
-    ("Reported Speech", "Grammar"),
-    ("The Fun They Had", "Literature"),
-    ("The Lost Child", "Literature"),
-    ("Diary Entry", "Writing"),
-    ("Integrated Grammar", "Grammar"),
-    ("The Sound Of Music PT.1", "Literature"),
-    ("The Sound Of Music PT.2", "Literature"),
-    ("The Adventures Of Toto", "Literature"),
-    ("Cells: The Fundamental Units of Life", "Science"),
-    ("Matter in Our Surroundings", "Science"),
-    ("Is Matter Around Us Pure?", "Science"),
-    ("Motion", "Physics"),
-    ("Force and Laws of Motion", "Physics"),
-    ("What is Democracy? Why Democracy?", "Social Studies"),
-    ("Electoral Politics", "Social Studies"),
-    ("The Story of Village Palampur", "Economics"),
-    ("People as a Resource", "Economics"),
-    ("Lektion 1", "German"),
-    ("Introduction to Python", "Computer Science"),
-    ("Entrepreneurial Skills-I", "Business"),
-    ("The French Revolution", "History"),
-]
-
 
 class SpacedRepetitionSystem:
     def __init__(self):
@@ -58,9 +32,14 @@ class SpacedRepetitionSystem:
                 "topics": {},
                 "total_reviews": 0,
                 "subjects": {},
-                "streak": {"current": 0, "longest": 0, "last_review": None, "last_homework": None},
+                "streak": {
+                    "current": 0,
+                    "longest": 0,
+                    "last_review": None,
+                    "last_homework": None,
+                },
                 "homework": {},
-                "total_homework_completed": 0
+                "total_homework_completed": 0,
             }
 
         try:
@@ -79,9 +58,14 @@ class SpacedRepetitionSystem:
                 "topics": {},
                 "total_reviews": 0,
                 "subjects": {},
-                "streak": {"current": 0, "longest": 0, "last_review": None, "last_homework": None},
+                "streak": {
+                    "current": 0,
+                    "longest": 0,
+                    "last_review": None,
+                    "last_homework": None,
+                },
                 "homework": {},
-                "total_homework_completed": 0
+                "total_homework_completed": 0,
             }
 
     def _initialize_subjects(self):
@@ -90,14 +74,20 @@ class SpacedRepetitionSystem:
 
     def save_data(self):
         with open(DATA_FILE, "w") as f:
-            json.dump({
-                "topics": self.data["topics"],
-                "total_reviews": self.data["total_reviews"],
-                "subjects": self.data["subjects"],
-                "streak": self.data["streak"],
-                "homework": self.homework,
-                "total_homework_completed": self.data.get("total_homework_completed", 0)
-            }, f, indent=2)
+            json.dump(
+                {
+                    "topics": self.data["topics"],
+                    "total_reviews": self.data["total_reviews"],
+                    "subjects": self.data["subjects"],
+                    "streak": self.data["streak"],
+                    "homework": self.homework,
+                    "total_homework_completed": self.data.get(
+                        "total_homework_completed", 0
+                    ),
+                },
+                f,
+                indent=2,
+            )
 
     def add_topic(self, topic: str, subject: str):
         if topic not in self.data["topics"]:
@@ -124,15 +114,25 @@ class SpacedRepetitionSystem:
         current_date = datetime.now()
 
         # Calculate review performance
-        days_since_last_review = (current_date - datetime.fromisoformat(topic_data["next_review"])).days
-        early_review_factor = max(0, 1 - (days_since_last_review / 7))  # Bonus for early review
+        days_since_last_review = (
+            current_date - datetime.fromisoformat(topic_data["next_review"])
+        ).days
+        early_review_factor = max(
+            0, 1 - (days_since_last_review / 7)
+        )  # Bonus for early review
 
         # Get user input for difficulty and confidence
-        difficulty = self._get_user_rating("Rate the difficulty (1-5, where 1 is easiest and 5 is hardest): ")
-        confidence = self._get_user_rating("Rate your confidence (1-5, where 1 is least confident and 5 is most confident): ")
+        difficulty = self._get_user_rating(
+            "Rate the difficulty (1-5, where 1 is easiest and 5 is hardest): "
+        )
+        confidence = self._get_user_rating(
+            "Rate your confidence (1-5, where 1 is least confident and 5 is most confident): "
+        )
 
         # Calculate review score
-        review_score = ((6 - difficulty) + confidence) / 2  # Average of inverted difficulty and confidence
+        review_score = (
+            (6 - difficulty) + confidence
+        ) / 2  # Average of inverted difficulty and confidence
 
         # Update topic data
         topic_data["level"] += review_score / 5  # Incremental level increase
@@ -145,16 +145,24 @@ class SpacedRepetitionSystem:
         confidence_factor = confidence / 3
         early_review_bonus = 1 + early_review_factor
 
-        next_interval = int(base_interval * difficulty_factor * confidence_factor * early_review_bonus)
+        next_interval = int(
+            base_interval * difficulty_factor * confidence_factor * early_review_bonus
+        )
 
         # Apply spaced repetition curve
-        spaced_interval = self._apply_spaced_repetition_curve(next_interval, topic_data["reviews"])
+        spaced_interval = self._apply_spaced_repetition_curve(
+            next_interval, topic_data["reviews"]
+        )
 
         # Set next review date
-        topic_data["next_review"] = (current_date + timedelta(days=spaced_interval)).isoformat()
+        topic_data["next_review"] = (
+            current_date + timedelta(days=spaced_interval)
+        ).isoformat()
 
         # Update topic difficulty
-        topic_data["difficulty"] = self._update_topic_difficulty(topic_data["difficulty"], difficulty)
+        topic_data["difficulty"] = self._update_topic_difficulty(
+            topic_data["difficulty"], difficulty
+        )
 
         self.data["total_reviews"] += 1
         self.update_streak()
@@ -182,10 +190,14 @@ class SpacedRepetitionSystem:
         else:
             return min(interval, 60)  # Cap at 60 days for subsequent reviews
 
-    def _update_topic_difficulty(self, current_difficulty: float, new_difficulty: int) -> float:
+    def _update_topic_difficulty(
+        self, current_difficulty: float, new_difficulty: int
+    ) -> float:
         # Gradually adjust the topic's overall difficulty
         learning_rate = 0.2
-        return current_difficulty + learning_rate * (new_difficulty - current_difficulty)
+        return current_difficulty + learning_rate * (
+            new_difficulty - current_difficulty
+        )
 
     def get_topics_to_review(self, subject: str = None) -> List[str]:
         today = datetime.date.today().isoformat()
@@ -225,7 +237,9 @@ class SpacedRepetitionSystem:
         total_reviews = self.data["total_reviews"]
         total_homework = len(self.homework)
         total_homework_completed = self.data.get("total_homework_completed", 0)
-        topics_reviewed = sum(1 for topic in self.data["topics"].values() if topic["reviews"] > 0)
+        topics_reviewed = sum(
+            1 for topic in self.data["topics"].values() if topic["reviews"] > 0
+        )
 
         print(f"\nProgress Report:")
         print(f"Total topics: {total_topics}")
@@ -234,7 +248,9 @@ class SpacedRepetitionSystem:
         print(f"Average reviews per topic: {total_reviews / total_topics:.2f}")
         print(f"Total homework assigned: {total_homework}")
         print(f"Total homework completed: {total_homework_completed}")
-        print(f"Homework completion rate: {(total_homework_completed / total_homework * 100) if total_homework else 0:.2f}%")
+        print(
+            f"Homework completion rate: {(total_homework_completed / total_homework * 100) if total_homework else 0:.2f}%"
+        )
 
         print("\nTop 5 most reviewed topics:")
         sorted_topics = sorted(
@@ -328,7 +344,9 @@ class SpacedRepetitionSystem:
                 "subjects": self.data["subjects"],
                 "streak": self.data["streak"],
                 "homework": self.homework,
-                "total_homework_completed": self.data.get("total_homework_completed", 0)
+                "total_homework_completed": self.data.get(
+                    "total_homework_completed", 0
+                ),
             }
             with open(filename, "w") as f:
                 json.dump(export_data, f, indent=2)
@@ -376,12 +394,16 @@ class SpacedRepetitionSystem:
         today = datetime.date.today().isoformat()
         yesterday = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
 
-        if self.data["streak"]["last_review"] == yesterday or (homework and self.data["streak"]["last_homework"] == yesterday):
+        if self.data["streak"]["last_review"] == yesterday or (
+            homework and self.data["streak"]["last_homework"] == yesterday
+        ):
             self.data["streak"]["current"] += 1
             self.data["streak"]["longest"] = max(
                 self.data["streak"]["current"], self.data["streak"]["longest"]
             )
-        elif self.data["streak"]["last_review"] != today and (not homework or self.data["streak"]["last_homework"] != today):
+        elif self.data["streak"]["last_review"] != today and (
+            not homework or self.data["streak"]["last_homework"] != today
+        ):
             self.data["streak"]["current"] = 1
 
         if homework:
@@ -394,9 +416,10 @@ class SpacedRepetitionSystem:
         print(f"\nCurrent streak: {self.data['streak']['current']} days")
         print(f"Longest streak: {self.data['streak']['longest']} days")
         print(f"Last review: {self.data['streak']['last_review']}")
-        print(f"Last homework completion: {self.data['streak'].get('last_homework', 'Never')}")
+        print(
+            f"Last homework completion: {self.data['streak'].get('last_homework', 'Never')}"
+        )
 
-    
     def show_topic_history(self):
         topic = input("Enter the topic name to show history: ")
         if topic in self.data["topics"]:
@@ -416,13 +439,14 @@ class SpacedRepetitionSystem:
                 print("\nNo past review data available.")
         else:
             print(f"Topic '{topic}' not found.")
+
     def add_homework(self, subject, description, due_date):
         homework_id = len(self.homework) + 1
         self.homework[homework_id] = {
             "subject": subject,
             "description": description,
             "due_date": due_date,
-            "completed": False
+            "completed": False,
         }
         print(f"Homework added with ID: {homework_id}")
         self.save_data()
@@ -431,8 +455,12 @@ class SpacedRepetitionSystem:
         if homework_id in self.homework:
             if not self.homework[homework_id]["completed"]:
                 self.homework[homework_id]["completed"] = True
-                self.homework[homework_id]["completion_date"] = datetime.date.today().isoformat()
-                self.data["total_homework_completed"] = self.data.get("total_homework_completed", 0) + 1
+                self.homework[homework_id][
+                    "completion_date"
+                ] = datetime.date.today().isoformat()
+                self.data["total_homework_completed"] = (
+                    self.data.get("total_homework_completed", 0) + 1
+                )
                 self.update_streak(homework=True)
                 print(f"Homework (ID: {homework_id}) marked as completed.")
                 self.save_data()
@@ -445,8 +473,10 @@ class SpacedRepetitionSystem:
         if not self.homework:
             print("No homework assigned.")
             return
-        
+
         print("\nCurrent Homework:")
         for id, hw in self.homework.items():
             status = "Completed" if hw["completed"] else "Pending"
-            print(f"ID: {id}, Subject: {hw['subject']}, Description: {hw['description']}, Due: {hw['due_date']}, Status: {status}")
+            print(
+                f"ID: {id}, Subject: {hw['subject']}, Description: {hw['description']}, Due: {hw['due_date']}, Status: {status}"
+            )

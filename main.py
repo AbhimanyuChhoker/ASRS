@@ -1,4 +1,33 @@
+INITIAL_TOPICS = [
+    ("Road Not Taken", "Literature"),
+    ("Wind", "Literature"),
+    ("Reported Speech", "Grammar"),
+    ("The Fun They Had", "Literature"),
+    ("The Lost Child", "Literature"),
+    ("Diary Entry", "Writing"),
+    ("Integrated Grammar", "Grammar"),
+    ("The Sound Of Music PT.1", "Literature"),
+    ("The Sound Of Music PT.2", "Literature"),
+    ("The Adventures Of Toto", "Literature"),
+    ("Cells: The Fundamental Units of Life", "Science"),
+    ("Matter in Our Surroundings", "Science"),
+    ("Is Matter Around Us Pure?", "Science"),
+    ("Motion", "Physics"),
+    ("Force and Laws of Motion", "Physics"),
+    ("What is Democracy? Why Democracy?", "Social Studies"),
+    ("Electoral Politics", "Social Studies"),
+    ("The Story of Village Palampur", "Economics"),
+    ("People as a Resource", "Economics"),
+    ("Lektion 1", "German"),
+    ("Introduction to Python", "Computer Science"),
+    ("Entrepreneurial Skills-I", "Business"),
+    ("The French Revolution", "History"),
+]
+
+MAX_TOPICS_PER_DAY = 3
+
 from classes import SpacedRepetitionSystem
+
 
 def initialize_topics(srs):
     for topic, subject in INITIAL_TOPICS:
@@ -40,19 +69,25 @@ def main():
             topic = input("Enter the topic to review: ")
             srs.review_topic(topic)
         elif choice == "3":
-            subject = input("Enter a subject (or press Enter for all subjects): ").strip()
+            subject = input(
+                "Enter a subject (or press Enter for all subjects): "
+            ).strip()
             topics_to_review = srs.get_topics_to_review(subject if subject else None)
             if topics_to_review:
                 print(f"Topics to review today (max {MAX_TOPICS_PER_DAY}):")
                 for topic in topics_to_review:
-                    print(f"- {topic} (subject: {srs.data['topics'][topic]['subject']})")
+                    print(
+                        f"- {topic} (subject: {srs.data['topics'][topic]['subject']})"
+                    )
             else:
                 print("No topics to review today.")
         elif choice == "4":
             if srs.data["topics"]:
                 print("All topics:")
                 for topic, topic_data in srs.data["topics"].items():
-                    print(f"- {topic} (subject: {topic_data['subject']}, Next review: {topic_data['next_review']}, Difficulty: {topic_data['difficulty']}, Reviews: {topic_data['reviews']})")
+                    print(
+                        f"- {topic} (subject: {topic_data['subject']}, Next review: {topic_data['next_review']}, Difficulty: {topic_data['difficulty']}, Reviews: {topic_data['reviews']})"
+                    )
             else:
                 print("No topics added yet.")
         elif choice == "5":
@@ -90,6 +125,7 @@ def main():
             break
         else:
             print("Invalid choice. Please enter a number between 1 and 17.")
+
 
 if __name__ == "__main__":
     main()
