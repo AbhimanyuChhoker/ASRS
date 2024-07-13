@@ -1,6 +1,5 @@
-import datetime
 import math
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import json
 import time
 import random
@@ -93,7 +92,7 @@ class SpacedRepetitionSystem:
         if topic not in self.data["topics"]:
             self.data["topics"][topic] = {
                 "level": 0,
-                "next_review": datetime.date.today().isoformat(),
+                "next_review": date.today().isoformat(),
                 "difficulty": 3,
                 "reviews": 0,
                 "subject": subject,
@@ -200,7 +199,7 @@ class SpacedRepetitionSystem:
         )
 
     def get_topics_to_review(self, subject: str = None) -> List[str]:
-        today = datetime.date.today().isoformat()
+        today = date.today().isoformat()
         if subject:
             due_topics = {
                 topic
@@ -222,7 +221,7 @@ class SpacedRepetitionSystem:
             topics_for_today = sorted_topics[:MAX_TOPICS_PER_DAY]
             topics_for_tomorrow = sorted_topics[MAX_TOPICS_PER_DAY:]
 
-            tomorrow = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
+            tomorrow = (date.today() + timedelta(days=1)).isoformat()
             for topic in topics_for_tomorrow:
                 self.data["topics"][topic]["next_review"] = tomorrow
 
@@ -374,7 +373,7 @@ class SpacedRepetitionSystem:
             )
 
     def show_weekly_progress(self):
-        today = datetime.date.today()
+        today = date.today()
         week_ago = today - datetime.timedelta(days=7)
         daily_reviews = {
             (today - datetime.timedelta(days=i)).isoformat(): 0 for i in range(7)
@@ -391,8 +390,8 @@ class SpacedRepetitionSystem:
             print(f"{date}: {bar} ({count})")
 
     def update_streak(self, homework=False):
-        today = datetime.date.today().isoformat()
-        yesterday = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
+        today = date.today().isoformat()
+        yesterday = (date.today() - datetime.timedelta(days=1)).isoformat()
 
         if self.data["streak"]["last_review"] == yesterday or (
             homework and self.data["streak"]["last_homework"] == yesterday
@@ -457,7 +456,7 @@ class SpacedRepetitionSystem:
                 self.homework[homework_id]["completed"] = True
                 self.homework[homework_id][
                     "completion_date"
-                ] = datetime.date.today().isoformat()
+                ] = date.today().isoformat()
                 self.data["total_homework_completed"] = (
                     self.data.get("total_homework_completed", 0) + 1
                 )
