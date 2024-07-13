@@ -11,8 +11,6 @@ import pygame
 from pygame import mixer
 from pytube import YouTube
 import ssl
-ssl._create_default_https_context = ssl._create_unverified_context # for SSL Certificate Verification Failed
-
 
 DATA_FILE = "spaced_repetition_data.json"
 MAX_TOPICS_PER_DAY = 3
