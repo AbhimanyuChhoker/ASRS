@@ -57,4 +57,47 @@ The system uses a JSON file (`spaced_repetition_data.json`) to persist data betw
 - There's a daily limit (`MAX_TOPICS_PER_DAY`) on the number of topics scheduled for review.
 - The spaced repetition algorithm adjusts review intervals based on user-rated difficulty and the number of successful reviews.
 
-This documentation provides an overview of the ASRS system. For more detailed information on specific functions or usage, refer to the comments within the code or reach out to the developer.
+This documentation provides an overview of the ASRS system. For more detailed information on specific functions or usage, reach out to the developer.
+
+## Future Development
+
+### TODO: Convert to Full-Stack Web Application using MERN Stack
+
+To improve accessibility and user experience, there are plans to convert ASRS into a full-stack web application using the MERN (MongoDB, Express.js, React, Node.js) stack. This transformation will involve:
+
+1. Backend Development (Node.js & Express.js):
+   - Create a RESTful API using Express.js.
+   - Implement user authentication and authorization (e.g., using JSON Web Tokens).
+   - Set up MongoDB connection and define schemas using Mongoose.
+   - Migrate data from local JSON to MongoDB.
+
+2. Frontend Development (React):
+   - Develop a responsive single-page application (SPA) using React.
+   - Implement state management using Redux or Context API.
+   - Create intuitive UI components for topic management, review sessions, and progress tracking.
+   - Develop data visualization components for progress and statistics using libraries like Chart.js or D3.js.
+
+3. Database (MongoDB):
+   - Design and implement MongoDB schemas for users, topics, reviews, and homework.
+   - Set up MongoDB Atlas for cloud database hosting.
+
+4. Deployment:
+   - Set up cloud hosting for the application (e.g., Heroku for the backend, Netlify for the frontend).
+   - Implement CI/CD pipelines using platforms like GitHub Actions or GitLab CI.
+
+5. Additional Features:
+   - Implement user profiles and customization options.
+   - Add social features like sharing progress or competing with friends.
+   - Develop a Progressive Web App (PWA) for mobile-friendly access.
+
+6. Security Enhancements:
+   - Implement secure authentication practices (e.g., password hashing, HTTPS).
+   - Set up CORS policies and implement rate limiting.
+   - Regular security audits and dependency updates.
+
+7. Performance Optimization:
+   - Implement server-side rendering for improved initial load times.
+   - Optimize React components and implement code splitting.
+   - Set up caching strategies for frequently accessed data.
+
+This transformation will leverage the strengths of the MERN stack to create a modern, scalable, and efficient web application. Users will be able to access their spaced repetition system from any device with an internet connection, benefiting from real-time updates and a responsive interface.
