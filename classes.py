@@ -1,4 +1,6 @@
 import datetime
+import math
+from datetime import datetime, timedelta
 import json
 import time
 import random
@@ -116,41 +118,76 @@ class SpacedRepetitionSystem:
             print(f"Topic '{topic}' already exists.")
 
     def review_topic(self, topic: str):
-        if topic in self.data["topics"]:
-            topic_data = self.data["topics"][topic]
-            topic_data["level"] += 1
-            topic_data["reviews"] += 1
-            self.data["total_reviews"] += 1
-
-            topic_data["review_dates"].append(datetime.date.today().isoformat())
-
-            while True:
-                try:
-                    difficulty = int(
-                        input(
-                            "Rate the difficulty (1-5, where 1 is easiest and 5 is hardest): "
-                        )
-                    )
-                    if 1 <= difficulty <= 5:
-                        topic_data["difficulty"] = difficulty
-                        break
-                    else:
-                        print("Please enter a number between 1 and 5.")
-                except ValueError:
-                    print("Please enter a valid number.")
-
-            base_days = 2 ** topic_data["level"]
-            difficulty_factor = (6 - difficulty) / 3
-            days_to_next_review = int(base_days * difficulty_factor)
-
-            topic_data["next_review"] = (
-                datetime.date.today() + datetime.timedelta(days=days_to_next_review)
-            ).isoformat()
-            self.update_streak()
-            self.save_data()
-            print(f"Reviewed '{topic}'. Next review in {days_to_next_review} days.")
-        else:
+        if topic not in self.data["topics"]:
             print(f"Topic '{topic}' not found.")
+            return
+
+        topic_data = self.data["topics"][topic]
+        current_date = datetime.now()
+
+        # Calculate review performance
+        days_since_last_review = (current_date - datetime.fromisoformat(topic_data["next_review"])).days
+        early_review_factor = max(0, 1 - (days_since_last_review / 7))  # Bonus for early review
+
+        # Get user input for difficulty and confidence
+        difficulty = self._get_user_rating("Rate the difficulty (1-5, where 1 is easiest and 5 is hardest): ")
+        confidence = self._get_user_rating("Rate your confidence (1-5, where 1 is least confident and 5 is most confident): ")
+
+        # Calculate review score
+        review_score = ((6 - difficulty) + confidence) / 2  # Average of inverted difficulty and confidence
+
+        # Update topic data
+        topic_data["level"] += review_score / 5  # Incremental level increase
+        topic_data["reviews"] += 1
+        topic_data["review_dates"].append(current_date.isoformat())
+
+        # Calculate next review interval
+        base_interval = math.pow(2, topic_data["level"])
+        difficulty_factor = (6 - difficulty) / 3
+        confidence_factor = confidence / 3
+        early_review_bonus = 1 + early_review_factor
+
+        next_interval = int(base_interval * difficulty_factor * confidence_factor * early_review_bonus)
+
+        # Apply spaced repetition curve
+        spaced_interval = self._apply_spaced_repetition_curve(next_interval, topic_data["reviews"])
+
+        # Set next review date
+        topic_data["next_review"] = (current_date + timedelta(days=spaced_interval)).isoformat()
+
+        # Update topic difficulty
+        topic_data["difficulty"] = self._update_topic_difficulty(topic_data["difficulty"], difficulty)
+
+        self.data["total_reviews"] += 1
+        self.update_streak()
+        self.save_data()
+
+        print(f"Reviewed '{topic}'. Next review in {spaced_interval} days.")
+
+    def _get_user_rating(self, prompt: str) -> int:
+        while True:
+            try:
+                rating = int(input(prompt))
+                if 1 <= rating <= 5:
+                    return rating
+                else:
+                    print("Please enter a number between 1 and 5.")
+            except ValueError:
+                print("Please enter a valid number.")
+
+    def _apply_spaced_repetition_curve(self, interval: int, num_reviews: int) -> int:
+        # Implement a custom spaced repetition curve
+        if num_reviews <= 3:
+            return min(interval, 7)  # Cap at 7 days for the first 3 reviews
+        elif num_reviews <= 7:
+            return min(interval, 14)  # Cap at 14 days for the next 4 reviews
+        else:
+            return min(interval, 60)  # Cap at 60 days for subsequent reviews
+
+    def _update_topic_difficulty(self, current_difficulty: float, new_difficulty: int) -> float:
+        # Gradually adjust the topic's overall difficulty
+        learning_rate = 0.2
+        return current_difficulty + learning_rate * (new_difficulty - current_difficulty)
 
     def get_topics_to_review(self, subject: str = None) -> List[str]:
         today = datetime.date.today().isoformat()
