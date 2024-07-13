@@ -99,5 +99,3 @@ To improve accessibility and user experience, there are plans to convert ASRS in
    - Implement server-side rendering for improved initial load times.
    - Optimize React components and implement code splitting.
    - Set up caching strategies for frequently accessed data.
-
-This transformation will leverage the strengths of the MERN stack to create a modern, scalable, and efficient web application. Users will be able to access their spaced repetition system from any device with an internet connection, benefiting from real-time updates and a responsive interface.
