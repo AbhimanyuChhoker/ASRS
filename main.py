@@ -58,9 +58,9 @@ def main():
         print("15. Complete homework")
         print("16. Show homework")
         print("17. Edit homework")
-        print("18. Exit")
-
-        choice = input("Enter your choice (1-18): ") 
+        print("18. Create graph")
+        print("19. Exit")
+        choice = input("Enter your choice (1-19): ")
 
         if choice == "1":
             topic = input("Enter the topic name: ")
@@ -123,12 +123,20 @@ def main():
             homework_id = int(input("Enter the homework ID to edit: "))
             srs.edit_homework(homework_id)
         elif choice == "18":
+            graph_buffer = srs.generate_progress_graph()
+            with open("progress_graph.png", "wb") as f:
+                f.write(graph_buffer.getbuffer())
+            print("Progress graph saved as 'progress_graph.png'")
+        elif choice == "19":
             if srs.music_playing:
                 srs.toggle_music()
             print("Exiting program. Bye!")
             break
         else:
-            print("Invalid choice. Please enter a number between 1 and 18.")  # Updated range
+            print(
+                "Invalid choice. Please enter a number between 1 and 18."
+            )  # Updated range
+
 
 if __name__ == "__main__":
     main()

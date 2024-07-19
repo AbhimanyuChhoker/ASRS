@@ -8,11 +8,58 @@ from typing import Dict, List, Any
 from collections import defaultdict
 import pygame
 from pygame import mixer
-from pytube import YouTube
-import ssl
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_agg import FigureCanvasAgg
+import io
+import threading
+import time
 
 DATA_FILE = "spaced_repetition_data.json"
 MAX_TOPICS_PER_DAY = 3
+
+
+class PomodoroTimer:
+    def __init__(self, work_duration=25, break_duration=5):
+        self.work_duration = work_duration * 60
+        self.break_duration = break_duration * 60
+        self.timer_thread = None
+        self.is_running = False
+        self.is_break = False
+
+    def start(self):
+        self.is_running = True
+        self.timer_thread = threading.Thread(target=self._run_timer)
+        self.timer_thread.start()
+
+    def stop(self):
+        self.is_running = False
+        if self.timer_thread:
+            self.timer_thread.join()
+
+    def _run_timer(self):
+        while self.is_running:
+            if not self.is_break:
+                print("\nWork session started. Focus for 25 minutes!")
+                self._countdown(self.work_duration)
+            else:
+                print("\nBreak time! Take a 5-minute break.")
+                self._countdown(self.break_duration)
+
+            if self.is_running:
+                self.is_break = not self.is_break
+
+    def _countdown(self, duration):
+        start_time = time.time()
+        while time.time() - start_time < duration and self.is_running:
+            remaining = duration - int(time.time() - start_time)
+            mins, secs = divmod(remaining, 60)
+            timer = f"{mins:02d}:{secs:02d}"
+            print(f"\rTime remaining: {timer}", end="", flush=True)
+            time.sleep(1)
+        print()
+
+    def get_state(self):
+        return "break" if self.is_break else "work"
 
 
 class SpacedRepetitionSystem:
@@ -270,9 +317,9 @@ class SpacedRepetitionSystem:
             return
 
         subject = input(
-            "Enter a subject to focus on (or press Enter for all subject): "
+            "Enter a subject to focus on (or press Enter for all subjects): "
         ).strip()
-        if subject not in self.subjects:
+        if subject and subject not in self.subjects:
             print(f"Subject '{subject}' not found.")
             return
 
@@ -284,23 +331,36 @@ class SpacedRepetitionSystem:
         if play_music == "y":
             self.toggle_music()
 
+        pomodoro = PomodoroTimer()
+        pomodoro.start()
+
         end_time = time.time() + duration * 60
         topics_reviewed = 0
 
         while time.time() < end_time:
-            due_topics = self.get_topics_to_review(subject)
-            if not due_topics:
-                print("No more topics to review. Session ended early.")
+            if pomodoro.get_state() == "work":
+                due_topics = self.get_topics_to_review(subject)
+                if not due_topics:
+                    print("No more topics to review. Session ended early.")
+                    break
+
+                topic = random.choice(due_topics)
+                print(f"\nTime remaining: {int((end_time - time.time()) / 60)} minutes")
+                print(
+                    f"Review topic: {topic} (subject: {self.data['topics'][topic]['subject']})"
+                )
+                input("Press Enter when you're ready to rate the difficulty...")
+                self.review_topic(topic)
+                topics_reviewed += 1
+            else:
+                print("It's break time! Take a moment to relax.")
+                time.sleep(10)  # Wait for 10 seconds before checking again
+
+            if time.time() >= end_time:
+                print("\nStudy session time is up!")
                 break
 
-            topic = random.choice(due_topics)
-            print(f"\nTime remaining: {int((end_time - time.time()) / 60)} minutes")
-            print(
-                f"Review topic: {topic} (subject: {self.data['topics'][topic]['subject']})"
-            )
-            input("Press Enter when you're ready to rate the difficulty...")
-            self.review_topic(topic)
-            topics_reviewed += 1
+        pomodoro.stop()
 
         if self.music_playing:
             self.toggle_music()
@@ -454,9 +514,7 @@ class SpacedRepetitionSystem:
         if homework_id in self.homework:
             if not self.homework[homework_id]["completed"]:
                 self.homework[homework_id]["completed"] = True
-                self.homework[homework_id][
-                    "completion_date"
-                ] = date.today().isoformat()
+                self.homework[homework_id]["completion_date"] = date.today().isoformat()
                 self.data["total_homework_completed"] = (
                     self.data.get("total_homework_completed", 0) + 1
                 )
@@ -479,6 +537,7 @@ class SpacedRepetitionSystem:
             print(
                 f"ID: {id}, Subject: {hw['subject']}, Description: {hw['description']}, Due: {hw['due_date']}, Status: {status}"
             )
+
     def edit_homework(self, homework_id):
         if homework_id in self.homework:
             homework = self.homework[homework_id]
@@ -488,21 +547,49 @@ class SpacedRepetitionSystem:
             print(f"Due date: {homework['due_date']}")
             print(f"Completed: {homework['completed']}")
 
-            new_subject = input("Enter new subject (or press Enter to keep current): ").strip()
-            new_description = input("Enter new description (or press Enter to keep current): ").strip()
-            new_due_date = input("Enter new due date (YYYY-MM-DD) (or press Enter to keep current): ").strip()
-            new_completed = input("Is it completed? (y/n) (or press Enter to keep current): ").strip().lower()
+            new_subject = input(
+                "Enter new subject (or press Enter to keep current): "
+            ).strip()
+            new_description = input(
+                "Enter new description (or press Enter to keep current): "
+            ).strip()
+            new_due_date = input(
+                "Enter new due date (YYYY-MM-DD) (or press Enter to keep current): "
+            ).strip()
+            new_completed = (
+                input("Is it completed? (y/n) (or press Enter to keep current): ")
+                .strip()
+                .lower()
+            )
 
             if new_subject:
-                homework['subject'] = new_subject
+                homework["subject"] = new_subject
             if new_description:
-                homework['description'] = new_description
+                homework["description"] = new_description
             if new_due_date:
-                homework['due_date'] = new_due_date
-            if new_completed in ['y', 'n']:
-                homework['completed'] = (new_completed == 'y')
+                homework["due_date"] = new_due_date
+            if new_completed in ["y", "n"]:
+                homework["completed"] = new_completed == "y"
 
             print("Homework updated successfully.")
             self.save_data()
         else:
             print(f"Homework with ID {homework_id} not found.")
+
+    def generate_progress_graph(self):
+        topics = list(self.data["topics"].keys())
+        reviews = [topic_data["reviews"] for topic_data in self.data["topics"].values()]
+
+        plt.figure(figsize=(10, 6))
+        plt.bar(topics, reviews)
+        plt.title("Topic Review Frequency")
+        plt.xlabel("Topics")
+        plt.ylabel("Number of Reviews")
+        plt.xticks(rotation=90)
+        plt.tight_layout()
+
+        # Save to a bytes buffer
+        buf = io.BytesIO()
+        plt.savefig(buf, format="png")
+        buf.seek(0)
+        return buf
