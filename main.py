@@ -57,9 +57,10 @@ def main():
         print("14. Add homework")
         print("15. Complete homework")
         print("16. Show homework")
-        print("17. Exit")
+        print("17. Edit homework")
+        print("18. Exit")
 
-        choice = input("Enter your choice (1-17): ")
+        choice = input("Enter your choice (1-18): ") 
 
         if choice == "1":
             topic = input("Enter the topic name: ")
@@ -119,13 +120,15 @@ def main():
         elif choice == "16":
             srs.show_homework()
         elif choice == "17":
+            homework_id = int(input("Enter the homework ID to edit: "))
+            srs.edit_homework(homework_id)
+        elif choice == "18":
             if srs.music_playing:
                 srs.toggle_music()
             print("Exiting program. Bye!")
             break
         else:
-            print("Invalid choice. Please enter a number between 1 and 17.")
-
+            print("Invalid choice. Please enter a number between 1 and 18.")  # Updated range
 
 if __name__ == "__main__":
     main()

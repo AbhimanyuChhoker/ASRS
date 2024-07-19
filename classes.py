@@ -479,3 +479,30 @@ class SpacedRepetitionSystem:
             print(
                 f"ID: {id}, Subject: {hw['subject']}, Description: {hw['description']}, Due: {hw['due_date']}, Status: {status}"
             )
+    def edit_homework(self, homework_id):
+        if homework_id in self.homework:
+            homework = self.homework[homework_id]
+            print(f"\nCurrent homework details:")
+            print(f"Subject: {homework['subject']}")
+            print(f"Description: {homework['description']}")
+            print(f"Due date: {homework['due_date']}")
+            print(f"Completed: {homework['completed']}")
+
+            new_subject = input("Enter new subject (or press Enter to keep current): ").strip()
+            new_description = input("Enter new description (or press Enter to keep current): ").strip()
+            new_due_date = input("Enter new due date (YYYY-MM-DD) (or press Enter to keep current): ").strip()
+            new_completed = input("Is it completed? (y/n) (or press Enter to keep current): ").strip().lower()
+
+            if new_subject:
+                homework['subject'] = new_subject
+            if new_description:
+                homework['description'] = new_description
+            if new_due_date:
+                homework['due_date'] = new_due_date
+            if new_completed in ['y', 'n']:
+                homework['completed'] = (new_completed == 'y')
+
+            print("Homework updated successfully.")
+            self.save_data()
+        else:
+            print(f"Homework with ID {homework_id} not found.")
