@@ -9,6 +9,7 @@ ASRS is a Python-based spaced repetition system designed to help users manage an
 The core of the system, handling data management, topic reviews, and various user interactions.
 
 Key methods:
+
 - `__init__()`: Initializes the system, loading existing data or creating new data structures.
 - `add_topic(topic, subject)`: Adds a new topic to the system.
 - `review_topic(topic)`: Allows users to review a topic and updates its review schedule.
@@ -23,6 +24,7 @@ Key methods:
 Provides the user interface for interacting with the SpacedRepetitionSystem.
 
 Key functions:
+
 - `initialize_topics(srs)`: Adds initial topics to the system.
 - `main()`: The main loop handling user input and calling appropriate methods.
 
@@ -36,7 +38,6 @@ Key functions:
 6. Data Import/Export: Save and load system data in JSON format.
 7. Music Integration: Play background music during study sessions.
 8. Streak Tracking: Monitor daily study streaks.
-
 
 ## Usage
 
