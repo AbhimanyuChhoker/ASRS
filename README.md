@@ -32,10 +32,11 @@ Key functions:
 2. Spaced Repetition: Automatically schedules topic reviews based on difficulty and previous review performance.
 3. Study Sessions: Timed study sessions with randomly selected due topics.
 4. Progress Tracking: View overall progress, weekly progress, and topic history.
-5. Homework Management: Add, complete, and track homework assignments.
+5. Homework Management: Add, complete, edit, and track homework assignments.
 6. Data Import/Export: Save and load system data in JSON format.
 7. Music Integration: Play background music during study sessions.
 8. Streak Tracking: Monitor daily study streaks.
+
 
 ## Usage
 
