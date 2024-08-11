@@ -17,7 +17,6 @@ import time
 DATA_FILE = "spaced_repetition_data.json"
 MAX_TOPICS_PER_DAY = 3
 
-
 class PomodoroTimer:
     def __init__(self, work_duration=25, break_duration=5):
         self.work_duration = work_duration * 60
@@ -61,7 +60,6 @@ class PomodoroTimer:
     def get_state(self):
         return "break" if self.is_break else "work"
 
-
 class SpacedRepetitionSystem:
     def __init__(self):
         self.data: Dict[str, Any] = self.load_data()
@@ -74,68 +72,56 @@ class SpacedRepetitionSystem:
 
     def load_data(self) -> Dict[str, Any]:
         if not os.path.exists(DATA_FILE):
-            return {
-                "topics": {},
-                "total_reviews": 0,
-                "subjects": {},
-                "streak": {
-                    "current": 0,
-                    "longest": 0,
-                    "last_review": None,
-                    "last_homework": None,
-                },
-                "homework": {},
-                "total_homework_completed": 0,
-            }
+            return self._create_default_data()
 
         try:
             with open(DATA_FILE, "r") as f:
                 data = json.load(f)
-                if "homework" not in data:
-                    data["homework"] = {}
-                if "total_homework_completed" not in data:
-                    data["total_homework_completed"] = 0
-                if "last_homework" not in data["streak"]:
-                    data["streak"]["last_homework"] = None
+                self._validate_data_structure(data)
                 return data
-        except json.JSONDecodeError:
-            print("Error reading the data file. Creating a new one.")
-            return {
-                "topics": {},
-                "total_reviews": 0,
-                "subjects": {},
-                "streak": {
-                    "current": 0,
-                    "longest": 0,
-                    "last_review": None,
-                    "last_homework": None,
-                },
-                "homework": {},
-                "total_homework_completed": 0,
-            }
+        except (json.JSONDecodeError, FileNotFoundError, PermissionError) as e:
+            print(f"Error loading data file: {e}. Creating a new one.")
+            return self._create_default_data()
+
+    def _create_default_data(self) -> Dict[str, Any]:
+        return {
+            "topics": {},
+            "total_reviews": 0,
+            "subjects": {},
+            "streak": {
+                "current": 0,
+                "longest": 0,
+                "last_review": None,
+                "last_homework": None,
+            },
+            "homework": {},
+            "total_homework_completed": 0,
+        }
 
     def _initialize_subjects(self):
         for topic, data in self.data["topics"].items():
             self.subjects[data["subject"]].add(topic)
 
     def save_data(self):
-        with open(DATA_FILE, "w") as f:
-            json.dump(
-                {
+        try:
+            with open(DATA_FILE, "w") as f:
+                json.dump({
                     "topics": self.data["topics"],
                     "total_reviews": self.data["total_reviews"],
                     "subjects": self.data["subjects"],
                     "streak": self.data["streak"],
                     "homework": self.homework,
-                    "total_homework_completed": self.data.get(
-                        "total_homework_completed", 0
-                    ),
-                },
-                f,
-                indent=2,
-            )
+                    "total_homework_completed": self.data.get("total_homework_completed", 0),
+                }, f, indent=2)
+        except (IOError, PermissionError) as e:
+            print(f"Error saving data file: {e}. Data may not be saved.")
 
     def add_topic(self, topic: str, subject: str):
+        topic = topic.strip()
+        subject = subject.strip()
+        if not topic or not subject:
+            print("Topic and subject cannot be empty.")
+            return
         if topic not in self.data["topics"]:
             self.data["topics"][topic] = {
                 "level": 0,
@@ -152,6 +138,10 @@ class SpacedRepetitionSystem:
             print(f"Topic '{topic}' already exists.")
 
     def review_topic(self, topic: str):
+        topic = topic.strip()
+        if not topic:
+            print("Topic name cannot be empty.")
+            return
         if topic not in self.data["topics"]:
             print(f"Topic '{topic}' not found.")
             return
@@ -159,15 +149,13 @@ class SpacedRepetitionSystem:
         topic_data = self.data["topics"][topic]
         current_date = datetime.now()
 
-        # Calculate review performance
         days_since_last_review = (
             current_date - datetime.fromisoformat(topic_data["next_review"])
         ).days
         early_review_factor = max(
             0, 1 - (days_since_last_review / 7)
-        )  # Bonus for early review
+        )
 
-        # Get user input for difficulty and confidence
         difficulty = self._get_user_rating(
             "Rate the difficulty (1-5, where 1 is easiest and 5 is hardest): "
         )
@@ -175,17 +163,14 @@ class SpacedRepetitionSystem:
             "Rate your confidence (1-5, where 1 is least confident and 5 is most confident): "
         )
 
-        # Calculate review score
         review_score = (
             (6 - difficulty) + confidence
-        ) / 2  # Average of inverted difficulty and confidence
+        ) / 2
 
-        # Update topic data
-        topic_data["level"] += review_score / 5  # Incremental level increase
+        topic_data["level"] += review_score / 5
         topic_data["reviews"] += 1
         topic_data["review_dates"].append(current_date.isoformat())
 
-        # Calculate next review interval
         base_interval = math.pow(2, topic_data["level"])
         difficulty_factor = (6 - difficulty) / 3
         confidence_factor = confidence / 3
@@ -195,17 +180,14 @@ class SpacedRepetitionSystem:
             base_interval * difficulty_factor * confidence_factor * early_review_bonus
         )
 
-        # Apply spaced repetition curve
         spaced_interval = self._apply_spaced_repetition_curve(
             next_interval, topic_data["reviews"]
         )
 
-        # Set next review date
         topic_data["next_review"] = (
             current_date + timedelta(days=spaced_interval)
         ).isoformat()
 
-        # Update topic difficulty
         topic_data["difficulty"] = self._update_topic_difficulty(
             topic_data["difficulty"], difficulty
         )
@@ -219,7 +201,11 @@ class SpacedRepetitionSystem:
     def _get_user_rating(self, prompt: str) -> int:
         while True:
             try:
-                rating = int(input(prompt))
+                rating = input(prompt).strip()
+                if not rating:
+                    print("Please enter a number between 1 and 5.")
+                    continue
+                rating = int(rating)
                 if 1 <= rating <= 5:
                     return rating
                 else:
@@ -228,18 +214,16 @@ class SpacedRepetitionSystem:
                 print("Please enter a valid number.")
 
     def _apply_spaced_repetition_curve(self, interval: int, num_reviews: int) -> int:
-        # Implement a custom spaced repetition curve
         if num_reviews <= 3:
-            return min(interval, 7)  # Cap at 7 days for the first 3 reviews
+            return min(interval, 7)
         elif num_reviews <= 7:
-            return min(interval, 14)  # Cap at 14 days for the next 4 reviews
+            return min(interval, 14)
         else:
-            return min(interval, 60)  # Cap at 60 days for subsequent reviews
+            return min(interval, 60)
 
     def _update_topic_difficulty(
         self, current_difficulty: float, new_difficulty: int
     ) -> float:
-        # Gradually adjust the topic's overall difficulty
         learning_rate = 0.2
         return current_difficulty + learning_rate * (
             new_difficulty - current_difficulty
@@ -354,7 +338,7 @@ class SpacedRepetitionSystem:
                 topics_reviewed += 1
             else:
                 print("It's break time! Take a moment to relax.")
-                time.sleep(10)  # Wait for 10 seconds before checking again
+                time.sleep(10)
 
             if time.time() >= end_time:
                 print("\nStudy session time is up!")
@@ -390,7 +374,7 @@ class SpacedRepetitionSystem:
                 print("No music files available.")
 
     def show_subjects(self):
-        print("\nsubjects:")
+        print("\nSubjects:")
         for subject, topics in self.subjects.items():
             print(f"- {subject}: {len(topics)} topics")
 
@@ -434,9 +418,9 @@ class SpacedRepetitionSystem:
 
     def show_weekly_progress(self):
         today = date.today()
-        week_ago = today - datetime.timedelta(days=7)
+        week_ago = today - timedelta(days=7)
         daily_reviews = {
-            (today - datetime.timedelta(days=i)).isoformat(): 0 for i in range(7)
+            (today - timedelta(days=i)).isoformat(): 0 for i in range(7)
         }
 
         for topic in self.data["topics"].values():
@@ -451,7 +435,7 @@ class SpacedRepetitionSystem:
 
     def update_streak(self, homework=False):
         today = date.today().isoformat()
-        yesterday = (date.today() - datetime.timedelta(days=1)).isoformat()
+        yesterday = (date.today() - timedelta(days=1)).isoformat()
 
         if self.data["streak"]["last_review"] == yesterday or (
             homework and self.data["streak"]["last_homework"] == yesterday
@@ -484,7 +468,7 @@ class SpacedRepetitionSystem:
         if topic in self.data["topics"]:
             topic_data = self.data["topics"][topic]
             print(f"\nReview history for '{topic}':")
-            print(f"subject: {topic_data['subject']}")
+            print(f"Subject: {topic_data['subject']}")
             print(f"Current level: {topic_data['level']}")
             print(f"Total reviews: {topic_data['reviews']}")
             print(f"Current difficulty: {topic_data['difficulty']}")
@@ -500,6 +484,17 @@ class SpacedRepetitionSystem:
             print(f"Topic '{topic}' not found.")
 
     def add_homework(self, subject, description, due_date):
+        subject = subject.strip()
+        description = description.strip()
+        due_date = due_date.strip()
+        if not subject or not description or not due_date:
+            print("Subject, description, and due date cannot be empty.")
+            return
+        try:
+            datetime.strptime(due_date, "%Y-%m-%d")
+        except ValueError:
+            print("Invalid date format. Please use YYYY-MM-DD.")
+            return
         homework_id = len(self.homework) + 1
         self.homework[homework_id] = {
             "subject": subject,
@@ -567,7 +562,11 @@ class SpacedRepetitionSystem:
             if new_description:
                 homework["description"] = new_description
             if new_due_date:
-                homework["due_date"] = new_due_date
+                try:
+                    datetime.strptime(new_due_date, "%Y-%m-%d")
+                    homework["due_date"] = new_due_date
+                except ValueError:
+                    print("Invalid date format. Due date not updated.")
             if new_completed in ["y", "n"]:
                 homework["completed"] = new_completed == "y"
 
