@@ -104,6 +104,10 @@ class SpacedRepetitionSystem:
 
     def save_data(self):
         try:
+            if os.path.exists(DATA_FILE):
+                backup_file = f"{DATA_FILE}.bak"
+                os.rename(DATA_FILE, backup_file)
+            
             with open(DATA_FILE, "w") as f:
                 json.dump({
                     "topics": self.data["topics"],
@@ -113,8 +117,15 @@ class SpacedRepetitionSystem:
                     "homework": self.homework,
                     "total_homework_completed": self.data.get("total_homework_completed", 0),
                 }, f, indent=2)
+
+            if os.path.exists(backup_file):
+                os.remove(backup_file)
+
         except (IOError, PermissionError) as e:
             print(f"Error saving data file: {e}. Data may not be saved.")
+            # Try to restore from backup if saving fails
+            if os.path.exists(backup_file):
+                os.rename(backup_file, DATA_FILE)
 
     def add_topic(self, topic: str, subject: str):
         topic = topic.strip()
