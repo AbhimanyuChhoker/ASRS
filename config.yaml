@@ -1,0 +1,2 @@
+data_file: "spaced_repetition_data.json"
+max_topics_per_day: 3

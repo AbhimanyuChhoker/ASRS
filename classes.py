@@ -4,7 +4,7 @@ import json
 import time
 import random
 import os
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 from collections import defaultdict
 import pygame
 from pygame import mixer
@@ -12,78 +12,55 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 import io
 import threading
-import time
+import logging
+import yaml
 
-DATA_FILE = "spaced_repetition_data.json"
-MAX_TOPICS_PER_DAY = 3
+# Load configuration
+with open('config.yaml', 'r') as config_file:
+    config = yaml.safe_load(config_file)
 
-class PomodoroTimer:
-    def __init__(self, work_duration=25, break_duration=5):
-        self.work_duration = work_duration * 60
-        self.break_duration = break_duration * 60
-        self.timer_thread = None
-        self.is_running = False
-        self.is_break = False
+DATA_FILE = config['data_file']
+MAX_TOPICS_PER_DAY = config['max_topics_per_day']
 
-    def start(self):
-        self.is_running = True
-        self.timer_thread = threading.Thread(target=self._run_timer)
-        self.timer_thread.start()
+# Set up logging
+logging.basicConfig(filename='srs.log', level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
 
-    def stop(self):
-        self.is_running = False
-        if self.timer_thread:
-            self.timer_thread.join()
-
-    def _run_timer(self):
-        while self.is_running:
-            if not self.is_break:
-                print("\nWork session started. Focus for 25 minutes!")
-                self._countdown(self.work_duration)
-            else:
-                print("\nBreak time! Take a 5-minute break.")
-                self._countdown(self.break_duration)
-
-            if self.is_running:
-                self.is_break = not self.is_break
-
-    def _countdown(self, duration):
-        start_time = time.time()
-        while time.time() - start_time < duration and self.is_running:
-            remaining = duration - int(time.time() - start_time)
-            mins, secs = divmod(remaining, 60)
-            timer = f"{mins:02d}:{secs:02d}"
-            print(f"\rTime remaining: {timer}", end="", flush=True)
-            time.sleep(1)
-        print()
-
-    def get_state(self):
-        return "break" if self.is_break else "work"
-
-class SpacedRepetitionSystem:
-    def __init__(self):
-        self.data: Dict[str, Any] = self.load_data()
-        self.subjects: Dict[str, set] = defaultdict(set)
-        self._initialize_subjects()
-        self.homework = {}
-        pygame.init()
-        mixer.init()
-        self.music_playing = False
-
-    def load_data(self) -> Dict[str, Any]:
+class DataManager:
+    @staticmethod
+    def load_data() -> Dict[str, Any]:
         if not os.path.exists(DATA_FILE):
-            return self._create_default_data()
+            return DataManager._create_default_data()
 
         try:
             with open(DATA_FILE, "r") as f:
                 data = json.load(f)
-                self._validate_data_structure(data)
+                DataManager._validate_data_structure(data)
                 return data
         except (json.JSONDecodeError, FileNotFoundError, PermissionError) as e:
-            print(f"Error loading data file: {e}. Creating a new one.")
-            return self._create_default_data()
+            logging.error(f"Error loading data file: {e}")
+            return DataManager._create_default_data()
 
-    def _create_default_data(self) -> Dict[str, Any]:
+    @staticmethod
+    def save_data(data: Dict[str, Any]) -> None:
+        try:
+            backup_file = f"{DATA_FILE}.bak"
+            if os.path.exists(DATA_FILE):
+                os.rename(DATA_FILE, backup_file)
+            
+            with open(DATA_FILE, "w") as f:
+                json.dump(data, f, indent=2)
+
+            if os.path.exists(backup_file):
+                os.remove(backup_file)
+
+        except (IOError, PermissionError) as e:
+            logging.error(f"Error saving data file: {e}")
+            if os.path.exists(backup_file):
+                os.rename(backup_file, DATA_FILE)
+
+    @staticmethod
+    def _create_default_data() -> Dict[str, Any]:
         return {
             "topics": {},
             "total_reviews": 0,
@@ -98,40 +75,78 @@ class SpacedRepetitionSystem:
             "total_homework_completed": 0,
         }
 
-    def _initialize_subjects(self):
+    @staticmethod
+    def _validate_data_structure(data: Dict[str, Any]) -> None:
+        required_keys = ["topics", "total_reviews", "subjects", "streak", "homework", "total_homework_completed"]
+        for key in required_keys:
+            if key not in data:
+                raise ValueError(f"Invalid data structure: missing '{key}' key")
+
+class PomodoroTimer:
+    def __init__(self, work_duration: int = 25, break_duration: int = 5):
+        self.work_duration = work_duration * 60
+        self.break_duration = break_duration * 60
+        self.timer_thread: Optional[threading.Thread] = None
+        self.is_running = False
+        self.is_break = False
+
+    def start(self) -> None:
+        self.is_running = True
+        self.timer_thread = threading.Thread(target=self._run_timer)
+        self.timer_thread.start()
+
+    def stop(self) -> None:
+        self.is_running = False
+        if self.timer_thread:
+            self.timer_thread.join()
+
+    def _run_timer(self) -> None:
+        while self.is_running:
+            if not self.is_break:
+                logging.info("Work session started. Focus for 25 minutes!")
+                self._countdown(self.work_duration)
+            else:
+                logging.info("Break time! Take a 5-minute break.")
+                self._countdown(self.break_duration)
+
+            if self.is_running:
+                self.is_break = not self.is_break
+
+    def _countdown(self, duration: int) -> None:
+        start_time = time.time()
+        while time.time() - start_time < duration and self.is_running:
+            remaining = duration - int(time.time() - start_time)
+            mins, secs = divmod(remaining, 60)
+            timer = f"{mins:02d}:{secs:02d}"
+            print(f"\rTime remaining: {timer}", end="", flush=True)
+            time.sleep(1)
+        print()
+
+    def get_state(self) -> str:
+        return "break" if self.is_break else "work"
+
+class SpacedRepetitionSystem:
+    def __init__(self):
+        self.data: Dict[str, Any] = DataManager.load_data()
+        self.subjects: Dict[str, set] = defaultdict(set)
+        self._initialize_subjects()
+        self.homework: Dict[int, Dict[str, Any]] = self.data.get("homework", {})
+        pygame.init()
+        mixer.init()
+        self.music_playing = False
+
+    def _initialize_subjects(self) -> None:
         for topic, data in self.data["topics"].items():
             self.subjects[data["subject"]].add(topic)
 
-    def save_data(self):
-        try:
-            if os.path.exists(DATA_FILE):
-                backup_file = f"{DATA_FILE}.bak"
-                os.rename(DATA_FILE, backup_file)
-            
-            with open(DATA_FILE, "w") as f:
-                json.dump({
-                    "topics": self.data["topics"],
-                    "total_reviews": self.data["total_reviews"],
-                    "subjects": self.data["subjects"],
-                    "streak": self.data["streak"],
-                    "homework": self.homework,
-                    "total_homework_completed": self.data.get("total_homework_completed", 0),
-                }, f, indent=2)
+    def save_data(self) -> None:
+        DataManager.save_data(self.data)
 
-            if os.path.exists(backup_file):
-                os.remove(backup_file)
-
-        except (IOError, PermissionError) as e:
-            print(f"Error saving data file: {e}. Data may not be saved.")
-            # Try to restore from backup if saving fails
-            if os.path.exists(backup_file):
-                os.rename(backup_file, DATA_FILE)
-
-    def add_topic(self, topic: str, subject: str):
+    def add_topic(self, topic: str, subject: str) -> None:
         topic = topic.strip()
         subject = subject.strip()
         if not topic or not subject:
-            print("Topic and subject cannot be empty.")
+            logging.warning("Topic and subject cannot be empty.")
             return
         if topic not in self.data["topics"]:
             self.data["topics"][topic] = {
@@ -144,17 +159,17 @@ class SpacedRepetitionSystem:
             }
             self.subjects[subject].add(topic)
             self.save_data()
-            print(f"Added topic: {topic} (subject: {subject})")
+            logging.info(f"Added topic: {topic} (subject: {subject})")
         else:
-            print(f"Topic '{topic}' already exists.")
+            logging.warning(f"Topic '{topic}' already exists.")
 
-    def review_topic(self, topic: str):
+    def review_topic(self, topic: str) -> None:
         topic = topic.strip()
         if not topic:
-            print("Topic name cannot be empty.")
+            logging.warning("Topic name cannot be empty.")
             return
         if topic not in self.data["topics"]:
-            print(f"Topic '{topic}' not found.")
+            logging.warning(f"Topic '{topic}' not found.")
             return
 
         topic_data = self.data["topics"][topic]
@@ -207,22 +222,22 @@ class SpacedRepetitionSystem:
         self.update_streak()
         self.save_data()
 
-        print(f"Reviewed '{topic}'. Next review in {spaced_interval} days.")
+        logging.info(f"Reviewed '{topic}'. Next review in {spaced_interval} days.")
 
     def _get_user_rating(self, prompt: str) -> int:
         while True:
             try:
                 rating = input(prompt).strip()
                 if not rating:
-                    print("Please enter a number between 1 and 5.")
+                    logging.warning("Please enter a number between 1 and 5.")
                     continue
                 rating = int(rating)
                 if 1 <= rating <= 5:
                     return rating
                 else:
-                    print("Please enter a number between 1 and 5.")
+                    logging.warning("Please enter a number between 1 and 5.")
             except ValueError:
-                print("Please enter a valid number.")
+                logging.warning("Please enter a valid number.")
 
     def _apply_spaced_repetition_curve(self, interval: int, num_reviews: int) -> int:
         if num_reviews <= 3:
@@ -240,7 +255,7 @@ class SpacedRepetitionSystem:
             new_difficulty - current_difficulty
         )
 
-    def get_topics_to_review(self, subject: str = None) -> List[str]:
+    def get_topics_to_review(self, subject: Optional[str] = None) -> List[str]:
         today = date.today().isoformat()
         if subject:
             due_topics = {
@@ -268,12 +283,12 @@ class SpacedRepetitionSystem:
                 self.data["topics"][topic]["next_review"] = tomorrow
 
             self.save_data()
-            print(f"Rescheduled {len(topics_for_tomorrow)} topic(s) for tomorrow.")
+            logging.info(f"Rescheduled {len(topics_for_tomorrow)} topic(s) for tomorrow.")
             return topics_for_today
         else:
             return sorted_topics
 
-    def show_progress(self):
+    def show_progress(self) -> None:
         total_topics = len(self.data["topics"])
         total_reviews = self.data["total_reviews"]
         total_homework = len(self.homework)
@@ -282,40 +297,40 @@ class SpacedRepetitionSystem:
             1 for topic in self.data["topics"].values() if topic["reviews"] > 0
         )
 
-        print(f"\nProgress Report:")
-        print(f"Total topics: {total_topics}")
-        print(f"Topics reviewed at least once: {topics_reviewed}")
-        print(f"Total reviews: {total_reviews}")
-        print(f"Average reviews per topic: {total_reviews / total_topics:.2f}")
-        print(f"Total homework assigned: {total_homework}")
-        print(f"Total homework completed: {total_homework_completed}")
-        print(
+        logging.info(f"\nProgress Report:")
+        logging.info(f"Total topics: {total_topics}")
+        logging.info(f"Topics reviewed at least once: {topics_reviewed}")
+        logging.info(f"Total reviews: {total_reviews}")
+        logging.info(f"Average reviews per topic: {total_reviews / total_topics:.2f}")
+        logging.info(f"Total homework assigned: {total_homework}")
+        logging.info(f"Total homework completed: {total_homework_completed}")
+        logging.info(
             f"Homework completion rate: {(total_homework_completed / total_homework * 100) if total_homework else 0:.2f}%"
         )
 
-        print("\nTop 5 most reviewed topics:")
+        logging.info("\nTop 5 most reviewed topics:")
         sorted_topics = sorted(
             self.data["topics"].items(), key=lambda x: x[1]["reviews"], reverse=True
         )[:5]
         for topic, topic_data in sorted_topics:
-            print(
+            logging.info(
                 f"- {topic} ({topic_data['subject']}): {topic_data['reviews']} reviews"
             )
 
-    def study_session(self):
+    def study_session(self) -> None:
         try:
             duration = int(
                 input("Enter the duration of the study session in minutes: ")
             )
         except ValueError:
-            print("Please enter a valid number of minutes.")
+            logging.warning("Please enter a valid number of minutes.")
             return
 
         subject = input(
             "Enter a subject to focus on (or press Enter for all subjects): "
         ).strip()
         if subject and subject not in self.subjects:
-            print(f"Subject '{subject}' not found.")
+            logging.warning(f"Subject '{subject}' not found.")
             return
 
         play_music = (
@@ -336,23 +351,23 @@ class SpacedRepetitionSystem:
             if pomodoro.get_state() == "work":
                 due_topics = self.get_topics_to_review(subject)
                 if not due_topics:
-                    print("No more topics to review. Session ended early.")
+                    logging.info("No more topics to review. Session ended early.")
                     break
 
                 topic = random.choice(due_topics)
-                print(f"\nTime remaining: {int((end_time - time.time()) / 60)} minutes")
-                print(
+                logging.info(f"\nTime remaining: {int((end_time - time.time()) / 60)} minutes")
+                logging.info(
                     f"Review topic: {topic} (subject: {self.data['topics'][topic]['subject']})"
                 )
                 input("Press Enter when you're ready to rate the difficulty...")
                 self.review_topic(topic)
                 topics_reviewed += 1
             else:
-                print("It's break time! Take a moment to relax.")
+                logging.info("It's break time! Take a moment to relax.")
                 time.sleep(10)
 
             if time.time() >= end_time:
-                print("\nStudy session time is up!")
+                logging.info("\nStudy session time is up!")
                 break
 
         pomodoro.stop()
@@ -360,19 +375,19 @@ class SpacedRepetitionSystem:
         if self.music_playing:
             self.toggle_music()
 
-        print(
+        logging.info(
             f"\nSession ended. You reviewed {topics_reviewed} topic(s) in this session."
         )
 
-    def toggle_music(self):
+    def toggle_music(self) -> None:
         if self.music_playing:
             mixer.music.stop()
             self.music_playing = False
-            print("Music stopped")
+            logging.info("Music stopped")
         else:
             music_dir = "music"
             if not os.path.exists(music_dir):
-                print("Music directory does not exist. Creating...")
+                logging.info("Music directory does not exist. Creating...")
                 os.mkdir(music_dir)
             music_files = [f for f in os.listdir(music_dir) if f.endswith(".mp3")]
             if music_files:
@@ -380,35 +395,35 @@ class SpacedRepetitionSystem:
                 mixer.music.load(music_file)
                 mixer.music.play(-1)
                 self.music_playing = True
-                print("Music started.")
+                logging.info("Music started.")
             else:
-                print("No music files available.")
+                logging.warning("No music files available.")
 
-    def show_subjects(self):
-        print("\nSubjects:")
+    def show_subjects(self) -> None:
+        logging.info("\nSubjects:")
         for subject, topics in self.subjects.items():
-            print(f"- {subject}: {len(topics)} topics")
+            logging.info(f"- {subject}: {len(topics)} topics")
 
-    def export_data(self):
-        filename = input("Enter the filename to export data (e.g., 'export.json'): ")
-        try:
-            export_data = {
-                "topics": self.data["topics"],
-                "total_reviews": self.data["total_reviews"],
-                "subjects": self.data["subjects"],
-                "streak": self.data["streak"],
-                "homework": self.homework,
-                "total_homework_completed": self.data.get(
-                    "total_homework_completed", 0
-                ),
-            }
-            with open(filename, "w") as f:
-                json.dump(export_data, f, indent=2)
-            print(f"Data exported successfully to {filename}")
-        except IOError:
-            print("Error occurred while exporting data.")
+    def export_data(self) -> None:
+            filename = input("Enter the filename to export data (e.g., 'export.json'): ")
+            try:
+                export_data = {
+                    "topics": self.data["topics"],
+                    "total_reviews": self.data["total_reviews"],
+                    "subjects": self.data["subjects"],
+                    "streak": self.data["streak"],
+                    "homework": self.homework,
+                    "total_homework_completed": self.data.get(
+                        "total_homework_completed", 0
+                    ),
+                }
+                with open(filename, "w") as f:
+                    json.dump(export_data, f, indent=2)
+                logging.info(f"Data exported successfully to {filename}")
+            except IOError as e:
+                logging.error(f"Error occurred while exporting data: {e}")
 
-    def import_data(self):
+    def import_data(self) -> None:
         filename = input("Enter the filename to import data from: ")
         try:
             with open(filename, "r") as f:
@@ -416,18 +431,16 @@ class SpacedRepetitionSystem:
             if not all(
                 key in imported_data for key in ["topics", "total_reviews", "subjects"]
             ):
-                print("Invalid data format in the import file.")
+                logging.error("Invalid data format in the import file.")
                 return
             self.data = imported_data
             self._initialize_subjects()
             self.save_data()
-            print(f"Data imported successfully from {filename}")
-        except (IOError, json.JSONDecodeError):
-            print(
-                "Error occurred while importing data. Make sure the file exists and contains valid JSON."
-            )
+            logging.info(f"Data imported successfully from {filename}")
+        except (IOError, json.JSONDecodeError) as e:
+            logging.error(f"Error occurred while importing data: {e}")
 
-    def show_weekly_progress(self):
+    def show_weekly_progress(self) -> None:
         today = date.today()
         week_ago = today - timedelta(days=7)
         daily_reviews = {
@@ -439,12 +452,12 @@ class SpacedRepetitionSystem:
                 if review_date in daily_reviews:
                     daily_reviews[review_date] += 1
 
-        print("\nWeekly Progress (Reviews per day):")
+        logging.info("\nWeekly Progress (Reviews per day):")
         for date, count in daily_reviews.items():
             bar = "#" * count
-            print(f"{date}: {bar} ({count})")
+            logging.info(f"{date}: {bar} ({count})")
 
-    def update_streak(self, homework=False):
+    def update_streak(self, homework: bool = False) -> None:
         today = date.today().isoformat()
         yesterday = (date.today() - timedelta(days=1)).isoformat()
 
@@ -466,45 +479,45 @@ class SpacedRepetitionSystem:
             self.data["streak"]["last_review"] = today
         self.save_data()
 
-    def show_streak(self):
-        print(f"\nCurrent streak: {self.data['streak']['current']} days")
-        print(f"Longest streak: {self.data['streak']['longest']} days")
-        print(f"Last review: {self.data['streak']['last_review']}")
-        print(
+    def show_streak(self) -> None:
+        logging.info(f"\nCurrent streak: {self.data['streak']['current']} days")
+        logging.info(f"Longest streak: {self.data['streak']['longest']} days")
+        logging.info(f"Last review: {self.data['streak']['last_review']}")
+        logging.info(
             f"Last homework completion: {self.data['streak'].get('last_homework', 'Never')}"
         )
 
-    def show_topic_history(self):
+    def show_topic_history(self) -> None:
         topic = input("Enter the topic name to show history: ")
         if topic in self.data["topics"]:
             topic_data = self.data["topics"][topic]
-            print(f"\nReview history for '{topic}':")
-            print(f"Subject: {topic_data['subject']}")
-            print(f"Current level: {topic_data['level']}")
-            print(f"Total reviews: {topic_data['reviews']}")
-            print(f"Current difficulty: {topic_data['difficulty']}")
-            print(f"Next review: {topic_data['next_review']}")
+            logging.info(f"\nReview history for '{topic}':")
+            logging.info(f"Subject: {topic_data['subject']}")
+            logging.info(f"Current level: {topic_data['level']}")
+            logging.info(f"Total reviews: {topic_data['reviews']}")
+            logging.info(f"Current difficulty: {topic_data['difficulty']}")
+            logging.info(f"Next review: {topic_data['next_review']}")
 
             if "review_dates" in topic_data:
-                print("\nPast reviews:")
+                logging.info("\nPast reviews:")
                 for date in topic_data["review_dates"]:
-                    print(f"- {date}")
+                    logging.info(f"- {date}")
             else:
-                print("\nNo past review data available.")
+                logging.info("\nNo past review data available.")
         else:
-            print(f"Topic '{topic}' not found.")
+            logging.warning(f"Topic '{topic}' not found.")
 
-    def add_homework(self, subject, description, due_date):
+    def add_homework(self, subject: str, description: str, due_date: str) -> None:
         subject = subject.strip()
         description = description.strip()
         due_date = due_date.strip()
         if not subject or not description or not due_date:
-            print("Subject, description, and due date cannot be empty.")
+            logging.warning("Subject, description, and due date cannot be empty.")
             return
         try:
             datetime.strptime(due_date, "%Y-%m-%d")
         except ValueError:
-            print("Invalid date format. Please use YYYY-MM-DD.")
+            logging.warning("Invalid date format. Please use YYYY-MM-DD.")
             return
         homework_id = len(self.homework) + 1
         self.homework[homework_id] = {
@@ -513,10 +526,10 @@ class SpacedRepetitionSystem:
             "due_date": due_date,
             "completed": False,
         }
-        print(f"Homework added with ID: {homework_id}")
+        logging.info(f"Homework added with ID: {homework_id}")
         self.save_data()
 
-    def complete_homework(self, homework_id):
+    def complete_homework(self, homework_id: int) -> None:
         if homework_id in self.homework:
             if not self.homework[homework_id]["completed"]:
                 self.homework[homework_id]["completed"] = True
@@ -525,33 +538,33 @@ class SpacedRepetitionSystem:
                     self.data.get("total_homework_completed", 0) + 1
                 )
                 self.update_streak(homework=True)
-                print(f"Homework (ID: {homework_id}) marked as completed.")
+                logging.info(f"Homework (ID: {homework_id}) marked as completed.")
                 self.save_data()
             else:
-                print(f"Homework (ID: {homework_id}) was already completed.")
+                logging.info(f"Homework (ID: {homework_id}) was already completed.")
         else:
-            print(f"Homework with ID {homework_id} not found.")
+            logging.warning(f"Homework with ID {homework_id} not found.")
 
-    def show_homework(self):
+    def show_homework(self) -> None:
         if not self.homework:
-            print("No homework assigned.")
+            logging.info("No homework assigned.")
             return
 
-        print("\nCurrent Homework:")
+        logging.info("\nCurrent Homework:")
         for id, hw in self.homework.items():
             status = "Completed" if hw["completed"] else "Pending"
-            print(
+            logging.info(
                 f"ID: {id}, Subject: {hw['subject']}, Description: {hw['description']}, Due: {hw['due_date']}, Status: {status}"
             )
 
-    def edit_homework(self, homework_id):
+    def edit_homework(self, homework_id: int) -> None:
         if homework_id in self.homework:
             homework = self.homework[homework_id]
-            print(f"\nCurrent homework details:")
-            print(f"Subject: {homework['subject']}")
-            print(f"Description: {homework['description']}")
-            print(f"Due date: {homework['due_date']}")
-            print(f"Completed: {homework['completed']}")
+            logging.info(f"\nCurrent homework details:")
+            logging.info(f"Subject: {homework['subject']}")
+            logging.info(f"Description: {homework['description']}")
+            logging.info(f"Due date: {homework['due_date']}")
+            logging.info(f"Completed: {homework['completed']}")
 
             new_subject = input(
                 "Enter new subject (or press Enter to keep current): "
@@ -577,16 +590,16 @@ class SpacedRepetitionSystem:
                     datetime.strptime(new_due_date, "%Y-%m-%d")
                     homework["due_date"] = new_due_date
                 except ValueError:
-                    print("Invalid date format. Due date not updated.")
+                    logging.warning("Invalid date format. Due date not updated.")
             if new_completed in ["y", "n"]:
                 homework["completed"] = new_completed == "y"
 
-            print("Homework updated successfully.")
+            logging.info("Homework updated successfully.")
             self.save_data()
         else:
-            print(f"Homework with ID {homework_id} not found.")
+            logging.warning(f"Homework with ID {homework_id} not found.")
 
-    def generate_progress_graph(self):
+    def generate_progress_graph(self) -> io.BytesIO:
         topics = list(self.data["topics"].keys())
         reviews = [topic_data["reviews"] for topic_data in self.data["topics"].values()]
 
@@ -598,8 +611,8 @@ class SpacedRepetitionSystem:
         plt.xticks(rotation=90)
         plt.tight_layout()
 
-        # Save to a bytes buffer
         buf = io.BytesIO()
         plt.savefig(buf, format="png")
         buf.seek(0)
+        plt.close()  # Close the figure to free up memory
         return buf
