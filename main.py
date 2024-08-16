@@ -5,11 +5,37 @@ from classes import SpacedRepetitionSystem
 logging.basicConfig(filename='srs.log', level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
 
+
+
+INITIAL_TOPICS = [
 INITIAL_TOPICS = [
     ("Road Not Taken", "Literature"),
+    ("Road Not Taken", "Literature"),
+    ("Wind", "Literature"),
     ("Wind", "Literature"),
     ("Reported Speech", "Grammar"),
+    ("Reported Speech", "Grammar"),
+    ("The Fun They Had", "Literature"),
     # ... (rest of the initial topics)
+    ("The Lost Child", "Literature"),
+    ("Diary Entry", "Writing"),
+    ("Integrated Grammar", "Grammar"),
+    ("The Sound Of Music PT.1", "Literature"),
+    ("The Sound Of Music PT.2", "Literature"),
+    ("The Adventures Of Toto", "Literature"),
+    ("Cells: The Fundamental Units of Life", "Science"),
+    ("Matter in Our Surroundings", "Science"),
+    ("Is Matter Around Us Pure?", "Science"),
+    ("Motion", "Physics"),
+    ("Force and Laws of Motion", "Physics"),
+    ("What is Democracy? Why Democracy?", "Social Studies"),
+    ("Electoral Politics", "Social Studies"),
+    ("The Story of Village Palampur", "Economics"),
+    ("People as a Resource", "Economics"),
+    ("Lektion 1", "German"),
+    ("Introduction to Python", "Computer Science"),
+    ("Entrepreneurial Skills-I", "Business"),
+    ("The French Revolution", "History"),
 ]
 
 def initialize_topics(srs: SpacedRepetitionSystem) -> None:
