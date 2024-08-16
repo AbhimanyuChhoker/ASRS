@@ -16,7 +16,7 @@ INITIAL_TOPICS = [
     ("Reported Speech", "Grammar"),
     ("Reported Speech", "Grammar"),
     ("The Fun They Had", "Literature"),
-    # ... (rest of the initial topics)
+
     ("The Lost Child", "Literature"),
     ("Diary Entry", "Writing"),
     ("Integrated Grammar", "Grammar"),
