@@ -8,7 +8,6 @@ logging.basicConfig(filename='srs.log', level=logging.INFO,
 
 
 INITIAL_TOPICS = [
-INITIAL_TOPICS = [
     ("Road Not Taken", "Literature"),
     ("Road Not Taken", "Literature"),
     ("Wind", "Literature"),
@@ -84,7 +83,7 @@ def main() -> None:
                 ).strip()
                 topics_to_review = srs.get_topics_to_review(subject if subject else None)
                 if topics_to_review:
-                    print(f"Topics to review today:")
+                    print("Topics to review today:")
                     for topic in topics_to_review:
                         print(
                             f"- {topic} (subject: {srs.data['topics'][topic]['subject']})"

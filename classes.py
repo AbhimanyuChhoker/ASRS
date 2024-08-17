@@ -1,5 +1,6 @@
 import math
 from datetime import datetime, timedelta, date
+import datetime
 import json
 import time
 import random
@@ -47,7 +48,7 @@ class DataManager:
             backup_file = f"{DATA_FILE}.bak"
             if os.path.exists(DATA_FILE):
                 os.rename(DATA_FILE, backup_file)
-            
+
             with open(DATA_FILE, "w") as f:
                 json.dump(data, f, indent=2)
 
@@ -151,7 +152,7 @@ class SpacedRepetitionSystem:
         if topic not in self.data["topics"]:
             self.data["topics"][topic] = {
                 "level": 0,
-                "next_review": date.today().isoformat(),
+                "next_review": datetime.date.today().isoformat(),
                 "difficulty": 3,
                 "reviews": 0,
                 "subject": subject,
@@ -173,10 +174,10 @@ class SpacedRepetitionSystem:
             return
 
         topic_data = self.data["topics"][topic]
-        current_date = datetime.now()
+        current_date = datetime.datetime.now()
 
         days_since_last_review = (
-            current_date - datetime.fromisoformat(topic_data["next_review"])
+            current_date - datetime.datetime.fromisoformat(topic_data["next_review"])
         ).days
         early_review_factor = max(
             0, 1 - (days_since_last_review / 7)
@@ -211,7 +212,7 @@ class SpacedRepetitionSystem:
         )
 
         topic_data["next_review"] = (
-            current_date + timedelta(days=spaced_interval)
+            current_date + datetime.timedelta(days=spaced_interval)
         ).isoformat()
 
         topic_data["difficulty"] = self._update_topic_difficulty(
@@ -256,7 +257,7 @@ class SpacedRepetitionSystem:
         )
 
     def get_topics_to_review(self, subject: Optional[str] = None) -> List[str]:
-        today = date.today().isoformat()
+        today = datetime.date.today().isoformat()
         if subject:
             due_topics = {
                 topic
@@ -278,7 +279,7 @@ class SpacedRepetitionSystem:
             topics_for_today = sorted_topics[:MAX_TOPICS_PER_DAY]
             topics_for_tomorrow = sorted_topics[MAX_TOPICS_PER_DAY:]
 
-            tomorrow = (date.today() + timedelta(days=1)).isoformat()
+            tomorrow = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
             for topic in topics_for_tomorrow:
                 self.data["topics"][topic]["next_review"] = tomorrow
 
@@ -441,10 +442,10 @@ class SpacedRepetitionSystem:
             logging.error(f"Error occurred while importing data: {e}")
 
     def show_weekly_progress(self) -> None:
-        today = date.today()
-        week_ago = today - timedelta(days=7)
+        today = datetime.date.today()
+        week_ago = today - datetime.timedelta(days=7)
         daily_reviews = {
-            (today - timedelta(days=i)).isoformat(): 0 for i in range(7)
+            (today - datetime.timedelta(days=i)).isoformat(): 0 for i in range(7)
         }
 
         for topic in self.data["topics"].values():
@@ -458,8 +459,8 @@ class SpacedRepetitionSystem:
             logging.info(f"{date}: {bar} ({count})")
 
     def update_streak(self, homework: bool = False) -> None:
-        today = date.today().isoformat()
-        yesterday = (date.today() - timedelta(days=1)).isoformat()
+        today = datetime.date.today().isoformat()
+        yesterday = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
 
         if self.data["streak"]["last_review"] == yesterday or (
             homework and self.data["streak"]["last_homework"] == yesterday
@@ -515,7 +516,7 @@ class SpacedRepetitionSystem:
             logging.warning("Subject, description, and due date cannot be empty.")
             return
         try:
-            datetime.strptime(due_date, "%Y-%m-%d")
+            datetime.datetime.strptime(due_date, "%Y-%m-%d")
         except ValueError:
             logging.warning("Invalid date format. Please use YYYY-MM-DD.")
             return
@@ -533,7 +534,7 @@ class SpacedRepetitionSystem:
         if homework_id in self.homework:
             if not self.homework[homework_id]["completed"]:
                 self.homework[homework_id]["completed"] = True
-                self.homework[homework_id]["completion_date"] = date.today().isoformat()
+                self.homework[homework_id]["completion_date"] = datetime.date.today().isoformat()
                 self.data["total_homework_completed"] = (
                     self.data.get("total_homework_completed", 0) + 1
                 )
@@ -587,7 +588,7 @@ class SpacedRepetitionSystem:
                 homework["description"] = new_description
             if new_due_date:
                 try:
-                    datetime.strptime(new_due_date, "%Y-%m-%d")
+                    datetime.datetime.strptime(new_due_date, "%Y-%m-%d")
                     homework["due_date"] = new_due_date
                 except ValueError:
                     logging.warning("Invalid date format. Due date not updated.")
