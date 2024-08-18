@@ -4,24 +4,19 @@ import datetime
 import json
 import time
 import random
-import os
 from typing import Dict, List, Any, Optional
 from collections import defaultdict
 import pygame
 from pygame import mixer
+import os
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 import io
 import threading
 import logging
-import yaml
 
-# Load configuration
-with open('config.yaml', 'r') as config_file:
-    config = yaml.safe_load(config_file)
-
-DATA_FILE = config['data_file']
-MAX_TOPICS_PER_DAY = config['max_topics_per_day']
+DATA_FILE = "spaced_repetition_data.json"
+MAX_TOPICS_PER_DAY = 3
 
 # Set up logging
 logging.basicConfig(filename='srs.log', level=logging.INFO,
@@ -41,24 +36,15 @@ class DataManager:
         except (json.JSONDecodeError, FileNotFoundError, PermissionError) as e:
             logging.error(f"Error loading data file: {e}")
             return DataManager._create_default_data()
-
+            
     @staticmethod
     def save_data(data: Dict[str, Any]) -> None:
         try:
-            backup_file = f"{DATA_FILE}.bak"
-            if os.path.exists(DATA_FILE):
-                os.rename(DATA_FILE, backup_file)
-
             with open(DATA_FILE, "w") as f:
                 json.dump(data, f, indent=2)
-
-            if os.path.exists(backup_file):
-                os.remove(backup_file)
-
+            logging.info("Data saved successfully.")
         except (IOError, PermissionError) as e:
             logging.error(f"Error saving data file: {e}")
-            if os.path.exists(backup_file):
-                os.rename(backup_file, DATA_FILE)
 
     @staticmethod
     def _create_default_data() -> Dict[str, Any]:
@@ -135,6 +121,7 @@ class SpacedRepetitionSystem:
         pygame.init()
         mixer.init()
         self.music_playing = False
+        self.homework: Dict[int, Dict[str, Any]] = self.data.get("homework", {})
 
     def _initialize_subjects(self) -> None:
         for topic, data in self.data["topics"].items():
@@ -436,6 +423,7 @@ class SpacedRepetitionSystem:
                 return
             self.data = imported_data
             self._initialize_subjects()
+            self.homework = self.data.get("homework", {})
             self.save_data()
             logging.info(f"Data imported successfully from {filename}")
         except (IOError, json.JSONDecodeError) as e:
@@ -528,6 +516,7 @@ class SpacedRepetitionSystem:
             "completed": False,
         }
         logging.info(f"Homework added with ID: {homework_id}")
+        self.data["homework"] = self.homework
         self.save_data()
 
     def complete_homework(self, homework_id: int) -> None:
@@ -540,6 +529,7 @@ class SpacedRepetitionSystem:
                 )
                 self.update_streak(homework=True)
                 logging.info(f"Homework (ID: {homework_id}) marked as completed.")
+                self.data["homework"] = self.homework
                 self.save_data()
             else:
                 logging.info(f"Homework (ID: {homework_id}) was already completed.")
@@ -596,6 +586,7 @@ class SpacedRepetitionSystem:
                 homework["completed"] = new_completed == "y"
 
             logging.info("Homework updated successfully.")
+            self.data["homework"] = self.homework
             self.save_data()
         else:
             logging.warning(f"Homework with ID {homework_id} not found.")
