@@ -51,7 +51,6 @@ The system uses a JSON file (`spaced_repetition_data.json`) to persist data betw
 
 - Python 3.x
 - Pygame (for music playback)
-- PyTube (for potential YouTube integration, though not actively used in the provided code)
 
 ## Notes
 
