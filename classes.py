@@ -18,10 +18,11 @@ import logging
 DATA_FILE = "spaced_repetition_data.json"
 MAX_TOPICS_PER_DAY = 3
 
-# Set up logging
+# Set up logging to a file
 logging.basicConfig(filename='srs.log', level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
 
+# Class for managing file I/O
 class DataManager:
     @staticmethod
     def load_data() -> Dict[str, Any]:
